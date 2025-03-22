@@ -21,9 +21,9 @@ Clippy is a lightweight, elegant clipboard manager for macOS that helps you mana
 
 ## Installation
 
-**Note: After creating your first release, the download link below will be active.**
+The first release is now available! You can find it in the releases directory.
 
-1. Download the latest release from the [Releases page](../../releases/latest) of this repository
+1. Download the latest release from the [releases directory](./releases)
 2. Drag Clippy to your Applications folder
 3. Launch Clippy and grant necessary permissions
 

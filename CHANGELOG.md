@@ -17,3 +17,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Frosted glass UI with macOS Finder-like appearance
 - Fade animations for window appearance/disappearance
 - Export/import clipboard history 
+
+[1.0.0]: https://github.com/[YOUR_USERNAME]/Clippy/releases/tag/v1.0.0 
