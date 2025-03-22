@@ -21,13 +21,15 @@ Clippy is a lightweight, elegant clipboard manager for macOS that helps you mana
 
 ## Installation
 
-1. [Download the latest release](https://github.com/YOUR_USERNAME/Clippy/releases/latest)
+**Note: After creating your first release, the download link below will be active.**
+
+1. Download the latest release from the [Releases page](../../releases/latest) of this repository
 2. Drag Clippy to your Applications folder
 3. Launch Clippy and grant necessary permissions
 
 ## Building from Source
 
-1. Clone the repository: `git clone https://github.com/YOUR_USERNAME/Clippy.git`
+1. Clone the repository: `git clone https://github.com/[YOUR_USERNAME]/Clippy.git`
 2. Open `Clippy.xcodeproj` in Xcode
 3. Build and run the project (⌘+R)
 
