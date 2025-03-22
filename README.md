@@ -4,6 +4,12 @@
 
 Clippy is a lightweight, elegant clipboard manager for macOS that helps you manage your clipboard history with style. Access your clipboard history instantly with a custom keyboard shortcut and enjoy a beautiful, frosted-glass interface inspired by macOS design.
 
+## Screenshots
+
+| Empty State | With Clipboard Items |
+|-------------|---------------------|
+| ![Empty State](Clippy/screenshots/empty_state.png) | ![With Items](Clippy/screenshots/with_items.png) |
+
 ## Features
 
 - 🔍 **Instant Access**: Summon Clippy with a customizable keyboard shortcut (default: ⌘+⇧+V)
