@@ -29,13 +29,21 @@ When you first launch Clippy, you'll need to:
 
 - When the Clippy window is open, start typing to search
 - Results will filter in real-time
+- Search works across all categories and types of clipboard items
+
+### Category Filtering
+
+- Click the category filter button (three horizontal lines) in the search bar to show/hide categories
+- Select a category (Text, Code, URL, Image) to filter your clipboard items by type
+- Each category has its own unique icon and color for easy identification
+- Click "All" to show all clipboard items again
 
 ### Pinning Items
 
 To keep important items easily accessible:
 
-1. Right-click on any clipboard item
-2. Select "Pin" from the context menu
+1. Hover over any clipboard item
+2. Click the pin icon that appears
 3. Access pinned items from the "Pinned" tab
 
 ## Advanced Features
@@ -46,13 +54,14 @@ To keep important items easily accessible:
 2. Go to the "Shortcuts" tab
 3. Click the shortcut field to record a new keyboard shortcut
 
-### Exporting and Importing Clipboard History
+### Data Management
 
-To backup or transfer your clipboard history:
+Clippy provides robust data management features:
 
-1. Click the export button (↑) in the Clippy window
-2. Choose a location to save your clipboard history
-3. To import, click the import button (↓) and select a previously exported file
+1. Click the gear icon to access Settings
+2. Navigate to the "Data Management" tab
+3. Use the Export button to save your clipboard history as a JSON file
+4. Use the Import button to restore a previously exported history
 
 ### Clearing History
 
@@ -69,6 +78,12 @@ To backup or transfer your clipboard history:
 
 - Make sure Clippy is running
 - Check that you haven't exceeded the maximum history size in settings
+
+### Search Not Working
+
+- Try clicking in the search field and typing again
+- Clear the search field and start over
+- Check if category filtering is active and restricting the results
 
 ## Getting Help
 

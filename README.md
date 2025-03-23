@@ -7,13 +7,15 @@ Clippy is a lightweight, elegant clipboard manager for macOS that helps you mana
 ## Features
 
 - 🔍 **Instant Access**: Summon Clippy with a customizable keyboard shortcut (default: ⌘+⇧+V)
-- 📋 **Rich History**: Store text, URLs, and images from your clipboard
+- 📋 **Rich History**: Store text, URLs, code snippets, and images from your clipboard
 - 📌 **Pin Important Items**: Keep frequently used items readily available
 - 🔎 **Quick Search**: Easily find items in your clipboard history
+- 🏷️ **Category Filtering**: Filter clipboard items by type (text, code, URL, image)
 - 💻 **Native Experience**: Designed to feel like a native macOS app with beautiful frosted glass UI
 - 🌙 **Dark Mode Support**: Seamlessly adapts to your macOS appearance
 - ⚡ **Efficient**: Minimal CPU and memory footprint
 - 🔒 **Privacy-focused**: Your clipboard data never leaves your device
+- 🔄 **Data Management**: Import/export your clipboard history
 
 ## Requirements
 
@@ -38,8 +40,10 @@ Clippy is a lightweight, elegant clipboard manager for macOS that helps you mana
 - Press the default shortcut (⌘+⇧+V) to access your clipboard history
 - Click on any item to copy it and paste to the frontmost application
 - Use the search bar to filter items
+- Filter items by category (text, code, URL, image)
 - Right-click on items for additional options
 - Pin important items to keep them accessible
+- Manage your clipboard data through the Settings panel
 
 ## Contributing
 

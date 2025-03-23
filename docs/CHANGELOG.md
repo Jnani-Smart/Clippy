@@ -5,6 +5,28 @@ All notable changes to Clippy will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2024-03-23
+
+### Added
+- Category-based filtering system for clipboard items (text, code, URL, image)
+- Custom category-specific empty states with relevant icons and messages
+- Improved search functionality with real-time updates
+- New Data Management tab in Settings
+- Import/Export functionality in the Settings panel
+
+### Changed
+- Redesigned clipboard item cards with improved visual hierarchy
+- Enhanced UI with animated transitions for smoother experience
+- Better Settings window handling with proper window controls
+- Improved dialog handling with sheet-style presentation
+- Memory optimizations for handling large clipboard histories
+
+### Fixed
+- Search functionality issues
+- Window handling and focus problems
+- Category filtering reliability
+- Memory leaks in image handling
+
 ## [1.1.0] - 2023-12-18
 
 ### Added
