@@ -411,7 +411,7 @@
 					"-framework",
 					carbon,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = jnanismart.Clippy;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jnanismart.Clippy;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -442,7 +442,7 @@
 					"-framework",
 					carbon,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = jnanismart.Clippy;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jnanismart.Clippy;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;

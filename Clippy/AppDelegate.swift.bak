@@ -1,0 +1,193 @@
+import Cocoa
+
+@main
+class AppDelegate: NSObject, NSApplicationDelegate {
+    var popover: NSPopover!
+    var statusBarItem: NSStatusItem?
+    var clipboardManager: ClipboardManager!
+    
+    func applicationDidFinishLaunching(_ aNotification: Notification) {
+        // Initialize the clipboard manager
+        clipboardManager = ClipboardManager()
+        
+        // Set up the main popover
+        setupPopover()
+        
+        // Set up the status bar item
+        setupStatusBarItem()
+        
+        // Register for notifications
+        registerForNotifications()
+    }
+    
+    func applicationWillTerminate(_ aNotification: Notification) {
+        // Save any pending changes
+        clipboardManager.saveItems()
+    }
+    
+    // MARK: - Setup
+    
+    private func setupPopover() {
+        // Create the popover
+        popover = NSPopover()
+        
+        // Set up the content view
+        let clipboardView = ClipboardView(clipboardManager: clipboardManager)
+        let hostingController = NSHostingController(rootView: clipboardView)
+        popover.contentViewController = hostingController
+        
+        // Configure popover behavior
+        popover.behavior = .transient
+        popover.animates = true
+        
+        // Apply visual effects to the window when it appears
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(configurePopoverWindow),
+            name: NSPopover.didShowNotification,
+            object: popover
+        )
+    }
+    
+    @objc private func configurePopoverWindow() {
+        // Apply the visual effect to the window
+        if let window = popover.contentViewController?.view.window {
+            // Set basic window properties
+            window.isReleasedWhenClosed = false
+            window.level = .floating
+            window.titlebarAppearsTransparent = true
+            
+            // Apply frosted glass effect
+            window.backgroundColor = .clear
+            window.isOpaque = false
+            window.hasShadow = true
+            
+            // Apply cornerRadius to the window if possible
+            if let contentView = window.contentView {
+                contentView.wantsLayer = true
+                contentView.layer?.cornerRadius = 20
+                contentView.layer?.masksToBounds = true
+                
+                // Add subtle shadow
+                contentView.shadow = NSShadow()
+                contentView.layer?.shadowOpacity = 0.15
+                contentView.layer?.shadowRadius = 15
+                contentView.layer?.shadowOffset = CGSize(width: 0, height: 10)
+            }
+        }
+    }
+    
+    private func setupStatusBarItem() {
+        // Create the status bar item
+        statusBarItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        
+        // Set the icon
+        if let button = statusBarItem?.button {
+            button.image = NSImage(named: "StatusBarIcon")
+            button.image?.isTemplate = true
+            button.action = #selector(togglePopover(_:))
+            button.target = self
+        }
+    }
+    
+    private func registerForNotifications() {
+        // Register for notifications about menubar icon visibility
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(updateMenuBarIconVisibility(_:)),
+            name: Notification.Name("UpdateMenuBarIconVisibility"),
+            object: nil
+        )
+        
+        // Register for notifications about dock icon visibility
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(updateDockIconVisibility(_:)),
+            name: Notification.Name("UpdateDockIconVisibility"),
+            object: nil
+        )
+    }
+    
+    // MARK: - Popover management
+    
+    @objc func togglePopover(_ sender: Any?) {
+        if popover.isShown {
+            closePopover(sender)
+        } else {
+            showPopover(sender)
+        }
+    }
+    
+    func showPopover(_ sender: Any?) {
+        if let button = sender as? NSButton {
+            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        } else {
+            if let statusBarButton = statusBarItem?.button {
+                popover.show(relativeTo: statusBarButton.bounds, of: statusBarButton, preferredEdge: .minY)
+            }
+        }
+        
+        // Make sure the popover is the key window
+        popover.contentViewController?.view.window?.makeKey()
+    }
+    
+    func closePopover(_ sender: Any?) {
+        popover.performClose(sender)
+    }
+    
+    // MARK: - Notification Handlers
+    
+    @objc func updateMenuBarIconVisibility(_ notification: Notification) {
+        if let userInfo = notification.userInfo,
+           let hideMenuBarIcon = userInfo["hideMenuBarIcon"] as? Bool {
+            
+            if hideMenuBarIcon {
+                // Hide the menu bar icon
+                if statusBarItem != nil {
+                    NSStatusBar.system.removeStatusItem(statusBarItem!)
+                    statusBarItem = nil
+                }
+            } else {
+                // Show the menu bar icon if it's not already visible
+                if statusBarItem == nil {
+                    setupStatusBarItem()
+                }
+            }
+        }
+    }
+    
+    @objc func updateDockIconVisibility(_ notification: Notification) {
+        if let userInfo = notification.userInfo,
+           let hideDockIcon = userInfo["hideDockIcon"] as? Bool {
+            
+            // Update the app's activation policy based on the setting
+            NSApp.setActivationPolicy(hideDockIcon ? .accessory : .regular)
+        }
+    }
+    
+    // MARK: - Core Data stack
+    
+    lazy var persistentContainer: NSPersistentContainer = {
+        let container = NSPersistentContainer(name: "Clippy")
+        container.loadPersistentStores(completionHandler: { (storeDescription, error) in
+            if let error = error as NSError? {
+                fatalError("Unresolved error \(error), \(error.userInfo)")
+            }
+        })
+        return container
+    }()
+    
+    // MARK: - Core Data Saving support
+    
+    func saveContext() {
+        let context = persistentContainer.viewContext
+        if context.hasChanges {
+            do {
+                try context.save()
+            } catch {
+                let nserror = error as NSError
+                fatalError("Unresolved error \(nserror), \(nserror.userInfo)")
+            }
+        }
+    }
+} 

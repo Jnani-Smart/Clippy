@@ -210,7 +210,10 @@ struct SettingsView: View {
     @State private var currentKeyCombo: KeyCombo?
     @State private var isQuitInProgress = false
     @State private var isClearHistoryInProgress = false
+    @State private var isExporting = false
+    @State private var isImporting = false
     @EnvironmentObject private var clipboardManager: ClipboardManager
+    @State private var keyEventMonitor: Any?
     
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -251,10 +254,16 @@ struct SettingsView: View {
                             Label("Shortcuts", systemImage: "keyboard")
                         }
                         .tag(3)
+                    
+                    dataManagementView
+                        .tabItem {
+                            Label("Data Management", systemImage: "folder")
+                        }
+                        .tag(4)
                 }
                 .padding(.top, 5)
             }
-            .frame(width: 450, height: 400)
+            .frame(width: 500, height: 430)
             
             // Add close button in the top-left corner
             CloseButtonRepresentable(onClose: {
@@ -266,14 +275,17 @@ struct SettingsView: View {
         // Use hudWindow material like the floating window instead of sidebar
         .background(
             ZStack {
-                // Semi-transparent glass effect background
-                SettingsVisualEffectView(material: .hudWindow, blendingMode: .behindWindow)
+                // Premium glass effect background with enhanced contrast for foreground
+                SettingsVisualEffectView(material: .titlebar, blendingMode: .behindWindow)
                 
-                // Add subtle gradient overlay
+                // Slightly darker overlay for better foreground visibility
+                Color.black.opacity(0.14)
+                
+                // Subtle gradient for dimension
                 LinearGradient(
                     gradient: Gradient(colors: [
-                        Color.white.opacity(0.05),
-                        Color.white.opacity(0.02)
+                        Color.black.opacity(0.05),
+                        Color.black.opacity(0.02)
                     ]),
                     startPoint: .top,
                     endPoint: .bottom
@@ -281,6 +293,33 @@ struct SettingsView: View {
             }
         )
         .onAppear {
+            // Configure the window to behave as a normal window, not floating
+            if let window = NSApplication.shared.windows.first(where: { $0.title == "Settings" || $0.title.isEmpty }) {
+                window.level = .normal
+                window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+                window.isReleasedWhenClosed = false
+                window.center()
+                
+                // Make the window movable by the background
+                window.isMovableByWindowBackground = true
+                window.standardWindowButton(.closeButton)?.isHidden = true
+                window.standardWindowButton(.miniaturizeButton)?.isHidden = true
+                window.standardWindowButton(.zoomButton)?.isHidden = true
+                
+                // Set window title for proper identification
+                window.title = "Settings"
+            }
+            
+            // Add a local event monitor to capture the Escape key
+            keyEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                if event.keyCode == 53 { // ESC key
+                    // Just dismiss the settings instead of quitting
+                    isPresented = false
+                    return nil // Consume the event
+                }
+                return event // Pass other events through
+            }
+            
             // Load from UserDefaults manually
             if let savedModifiers = UserDefaults.standard.object(forKey: "clipboardShortcutModifiers") as? UInt {
                 shortcutModifiers = savedModifiers
@@ -310,6 +349,13 @@ struct SettingsView: View {
                         userInfo: ["keyCombo": combo]
                     )
                 }
+            }
+        }
+        .onDisappear {
+            // Remove the key event monitor when the view disappears
+            if let monitor = keyEventMonitor {
+                NSEvent.removeMonitor(monitor)
+                keyEventMonitor = nil
             }
         }
     }
@@ -567,6 +613,153 @@ struct SettingsView: View {
             .padding(20)
         }
     }
+    
+    // Data management settings with visionOS-inspired styling
+    private var dataManagementView: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                VisionOSGroupBox(title: "Clipboard Data") {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Export your clipboard history to a file or import from a previously exported file.")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                            .padding(.bottom, 8)
+                        
+                        HStack(spacing: 12) {
+                            VisionOSButton(title: "Export Clipboard History", role: nil, isInProgress: $isExporting) {
+                                guard !isExporting else { return }
+                                isExporting = true
+                                exportHistory()
+                                // Reset after a short delay
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                    isExporting = false
+                                }
+                            }
+                            .frame(maxWidth: .infinity)
+                            
+                            VisionOSButton(title: "Import Clipboard History", role: nil, isInProgress: $isImporting) {
+                                guard !isImporting else { return }
+                                isImporting = true
+                                importHistory()
+                                // Reset after a short delay
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                    isImporting = false
+                                }
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                    }
+                }
+            }
+            .padding(20)
+        }
+    }
+    
+    // Export function
+    private func exportHistory() {
+        guard let fileURL = clipboardManager.exportHistory() else {
+            // Show error
+            let alert = NSAlert()
+            alert.messageText = "Export Failed"
+            alert.informativeText = "Could not export clipboard history."
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+            return
+        }
+        
+        // Show save dialog
+        let savePanel = NSSavePanel()
+        if #available(macOS 12.0, *) {
+            savePanel.allowedContentTypes = [.json]
+        } else {
+            savePanel.allowedFileTypes = ["json"]
+        }
+        savePanel.nameFieldStringValue = "clipboard_history.json"
+        savePanel.title = "Save Clipboard History"
+        savePanel.message = "Choose where to save your clipboard history."
+        
+        // Present as sheet on the correct window
+        if let window = NSApplication.shared.windows.first(where: { $0.title == "Settings" }) {
+            savePanel.beginSheetModal(for: window) { response in
+                if response == .OK, let targetURL = savePanel.url {
+                    do {
+                        try FileManager.default.copyItem(at: fileURL, to: targetURL)
+                    } catch {
+                        let alert = NSAlert()
+                        alert.messageText = "Export Failed"
+                        alert.informativeText = error.localizedDescription
+                        alert.alertStyle = .warning
+                        alert.addButton(withTitle: "OK")
+                        alert.beginSheetModal(for: window, completionHandler: nil)
+                    }
+                }
+            }
+        } else {
+            // Fallback to non-sheet presentation
+            savePanel.begin { response in
+                if response == .OK, let targetURL = savePanel.url {
+                    do {
+                        try FileManager.default.copyItem(at: fileURL, to: targetURL)
+                    } catch {
+                        let alert = NSAlert()
+                        alert.messageText = "Export Failed"
+                        alert.informativeText = error.localizedDescription
+                        alert.alertStyle = .warning
+                        alert.addButton(withTitle: "OK")
+                        alert.runModal()
+                    }
+                }
+            }
+        }
+    }
+    
+    // Import function
+    private func importHistory() {
+        let openPanel = NSOpenPanel()
+        if #available(macOS 12.0, *) {
+            openPanel.allowedContentTypes = [.json]
+        } else {
+            openPanel.allowedFileTypes = ["json"]
+        }
+        openPanel.title = "Import Clipboard History"
+        openPanel.message = "Select a clipboard history file to import."
+        openPanel.allowsMultipleSelection = false
+        
+        // Present as sheet on the correct window
+        if let window = NSApplication.shared.windows.first(where: { $0.title == "Settings" }) {
+            openPanel.beginSheetModal(for: window) { response in
+                if response == .OK, let url = openPanel.url {
+                    let success = clipboardManager.importHistory(from: url)
+                    
+                    if !success {
+                        let alert = NSAlert()
+                        alert.messageText = "Import Failed"
+                        alert.informativeText = "Could not import clipboard history from the selected file."
+                        alert.alertStyle = .warning
+                        alert.addButton(withTitle: "OK")
+                        alert.beginSheetModal(for: window, completionHandler: nil)
+                    }
+                }
+            }
+        } else {
+            // Fallback to non-sheet presentation
+            openPanel.begin { response in
+                if response == .OK, let url = openPanel.url {
+                    let success = clipboardManager.importHistory(from: url)
+                    
+                    if !success {
+                        let alert = NSAlert()
+                        alert.messageText = "Import Failed"
+                        alert.informativeText = "Could not import clipboard history from the selected file."
+                        alert.alertStyle = .warning
+                        alert.addButton(withTitle: "OK")
+                        alert.runModal()
+                    }
+                }
+            }
+        }
+    }
 }
 
 // VisionOS-inspired components
@@ -680,11 +873,11 @@ struct VisionOSButton: View {
             Text(title)
                 .font(.system(size: 14, weight: .medium))
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
+                .padding(.vertical, 8)
                 .opacity(isInProgress ? 0.7 : 1.0)
         }
         .buttonStyle(.bordered)
-        .controlSize(.large)
+        .controlSize(.regular)
         .tint(role == .destructive ? .red : .accentColor)
         .disabled(isInProgress)
     }

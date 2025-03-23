@@ -25,6 +25,12 @@ class ClipboardManager: ObservableObject {
     
     init() {
         lastChangeCount = pasteboard.changeCount
+        
+        // Enable categories by default if the setting doesn't exist yet
+        if UserDefaults.standard.object(forKey: "enableCategories") == nil {
+            UserDefaults.standard.set(true, forKey: "enableCategories")
+        }
+        
         loadSavedItems()
         startMonitoring()
         setupAutoDeleteTimer()
@@ -185,8 +191,15 @@ class ClipboardManager: ObservableObject {
             
             // Move item to top of list if it exists
             if let index = self?.clipboardItems.firstIndex(where: { $0.id == item.id }) {
-                let movedItem = self?.clipboardItems.remove(at: index)
-                self?.clipboardItems.insert(movedItem!, at: 0)
+                // Create a new item with the same content to trigger code detection
+                if item.type == .text, let text = item.text {
+                    let newItem = ClipboardItem(text: text, originalText: item.originalText)
+                    self?.clipboardItems.remove(at: index)
+                    self?.clipboardItems.insert(newItem, at: 0)
+                } else {
+                    let movedItem = self?.clipboardItems.remove(at: index)
+                    self?.clipboardItems.insert(movedItem!, at: 0)
+                }
                 self?.saveItems()
             }
             
@@ -345,6 +358,43 @@ class ClipboardManager: ObservableObject {
         return clipboardItems.filter { $0.category == category }
     }
     
+    // New filter method that combines category and search text filtering
+    func filterItems(category: ClipboardCategory?, searchText: String, fromItems: [ClipboardItem]? = nil) -> [ClipboardItem] {
+        // Get base items
+        let baseItems = fromItems ?? clipboardItems
+        
+        // Apply category filter if needed
+        let categoryFiltered: [ClipboardItem]
+        if let category = category {
+            categoryFiltered = baseItems.filter { $0.category == category }
+        } else {
+            categoryFiltered = baseItems
+        }
+        
+        // Apply text search if needed
+        if searchText.isEmpty {
+            return categoryFiltered
+        } else {
+            return categoryFiltered.filter { item in
+                switch item.type {
+                case .text:
+                    if let text = item.text {
+                        return text.localizedCaseInsensitiveContains(searchText)
+                    }
+                    return false
+                case .url:
+                    if let urlString = item.text {
+                        return urlString.localizedCaseInsensitiveContains(searchText)
+                    }
+                    return false
+                case .image:
+                    // Images can't be searched by text
+                    return false
+                }
+            }
+        }
+    }
+    
     func isPinned(_ item: ClipboardItem) -> Bool {
         return pinnedItems.contains(where: { $0.id == item.id })
     }
@@ -359,6 +409,19 @@ class ClipboardManager: ObservableObject {
         if let pinnedIndex = pinnedItems.firstIndex(where: { $0.id == item.id }) {
             pinnedItems.remove(at: pinnedIndex)
             savePinnedItems()
+        }
+    }
+    
+    // Debug method to print items information
+    func printItemsInfo() {
+        print("--- All Clipboard Items ---")
+        for (index, item) in clipboardItems.enumerated() {
+            print("Item \(index): Type: \(item.type), Category: \(item.category?.rawValue ?? "none"), Preview: \(item.preview)")
+        }
+        
+        print("--- All Pinned Items ---")
+        for (index, item) in pinnedItems.enumerated() {
+            print("Item \(index): Type: \(item.type), Category: \(item.category?.rawValue ?? "none"), Preview: \(item.preview)")
         }
     }
     
@@ -458,6 +521,18 @@ enum ClipboardCategory: String, Codable, CaseIterable {
     }
 }
 
+// Structure to hold search configuration
+struct ClipboardSearchOptions {
+    var query: String = ""
+    var categoryFilter: ClipboardCategory? = nil
+    var caseSensitive: Bool = false
+    var onlyShowCode: Bool = false
+    
+    var isEmpty: Bool {
+        return query.isEmpty && categoryFilter == nil && !onlyShowCode
+    }
+}
+
 struct ClipboardItem: Identifiable, Codable {
     let id = UUID()
     let timestamp = Date()
@@ -483,9 +558,12 @@ struct ClipboardItem: Identifiable, Codable {
             self.imageData = nil
             self.originalText = originalText
             
-            // Detect if this is code
+            // Always check for code detection, regardless of categories setting
+            let isCode = self.detectedLanguage != nil
+            
+            // Only use categories if enabled, but still detect code
             if UserDefaults.standard.bool(forKey: "enableCategories") {
-                self.category = self.detectedLanguage != nil ? .code : .text
+                self.category = isCode ? .code : .text
             } else {
                 self.category = nil
             }

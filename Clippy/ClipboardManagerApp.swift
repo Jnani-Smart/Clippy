@@ -315,9 +315,9 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         let visualEffectView = NSVisualEffectView()
         visualEffectView.translatesAutoresizingMaskIntoConstraints = false
         
-        // Use a material that resembles Finder's sidebar
-        visualEffectView.material = .sidebar
-        visualEffectView.blendingMode = .behindWindow
+        // Use a material that resembles Finder's translucent UI
+        visualEffectView.material = .popover  // More modern translucent background like Finder
+        visualEffectView.blendingMode = .withinWindow
         
         // Ensure the effect is always active for consistent appearance
         visualEffectView.state = .active
@@ -644,9 +644,9 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         let visualEffectView = NSVisualEffectView()
         visualEffectView.translatesAutoresizingMaskIntoConstraints = false
         
-        // Use a material that resembles Finder's sidebar
-        visualEffectView.material = .sidebar  // More like Finder's translucent sidebar
-        visualEffectView.blendingMode = .behindWindow
+        // Use a material that resembles Finder's translucent UI
+        visualEffectView.material = .popover  // More modern translucent background like Finder
+        visualEffectView.blendingMode = .withinWindow
         
         // Ensure the effect is always active for consistent appearance
         visualEffectView.state = .active
