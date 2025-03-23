@@ -1,6 +1,32 @@
 import SwiftUI
 import CoreGraphics
 
+// Re-add the VisualEffectView that was removed
+struct VisualEffectView: NSViewRepresentable {
+    var material: NSVisualEffectView.Material
+    var blendingMode: NSVisualEffectView.BlendingMode
+    var state: NSVisualEffectView.State = .active
+    
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = material
+        view.blendingMode = blendingMode
+        view.state = state
+        
+        // Make it similar to Finder's translucent effect
+        view.wantsLayer = true
+        view.layer?.cornerRadius = 0
+        
+        return view
+    }
+    
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
+        nsView.material = material
+        nsView.blendingMode = blendingMode
+        nsView.state = state
+    }
+}
+
 struct ClipboardView: View {
     @ObservedObject var clipboardManager: ClipboardManager
     @State private var searchText = ""
@@ -10,6 +36,9 @@ struct ClipboardView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var showSettings = false
     @State private var segmentedSelection = 0 // 0 = Recent, 1 = Pinned
+    @State private var isExporting = false
+    @State private var isImporting = false
+    @State private var isSettingsOpening = false
     
     // Add the timeAgo function right here, before it's used
     private func timeAgo(from date: Date) -> String {
@@ -51,6 +80,7 @@ struct ClipboardView: View {
         }
         .sheet(isPresented: $showSettings) {
             SettingsView(isPresented: $showSettings)
+                .environmentObject(clipboardManager)
         }
         // Add keyboard shortcut to close with ESC key
         .keyboardShortcut(.cancelAction)
@@ -233,6 +263,9 @@ struct ClipboardView: View {
             
             HStack {
                 Button(action: {
+                    // Guard against multiple clicks
+                    guard !isClearing else { return }
+                    
                     // Simplified animation
                     isClearing = true
                     trashFilled = true
@@ -264,36 +297,65 @@ struct ClipboardView: View {
                 }
                 .buttonStyle(BorderlessButtonStyle())
                 .padding(.horizontal)
+                .disabled(isClearing)
                 
                 // Add export button
-                Button(action: exportHistory) {
+                Button(action: {
+                    guard !isExporting else { return }
+                    isExporting = true
+                    exportHistory()
+                    // Reset after a short delay
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        isExporting = false
+                    }
+                }) {
                     Image(systemName: "square.and.arrow.up")
                         .font(.system(size: 14, weight: .medium))
                         .imageScale(.medium)
+                        .opacity(isExporting ? 0.7 : 1.0)
                 }
                 .buttonStyle(BorderlessButtonStyle())
                 .help("Export clipboard history")
+                .disabled(isExporting)
                 
                 // Add import button
-                Button(action: importHistory) {
+                Button(action: {
+                    guard !isImporting else { return }
+                    isImporting = true
+                    importHistory()
+                    // Reset after a short delay
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        isImporting = false
+                    }
+                }) {
                     Image(systemName: "square.and.arrow.down")
                         .font(.system(size: 14, weight: .medium))
                         .imageScale(.medium)
+                        .opacity(isImporting ? 0.7 : 1.0)
                 }
                 .buttonStyle(BorderlessButtonStyle())
                 .help("Import clipboard history")
+                .disabled(isImporting)
                 
                 Spacer()
                 
                 // Settings button
                 Button(action: {
+                    guard !isSettingsOpening else { return }
+                    isSettingsOpening = true
                     showSettings = true
+                    // Reset after a short delay
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        isSettingsOpening = false
+                    }
                 }) {
                     Image(systemName: "gear")
                         .font(.system(size: 16, weight: .medium))
                         .imageScale(.medium)
+                        .opacity(isSettingsOpening ? 0.7 : 1.0)
                 }
                 .buttonStyle(BorderlessButtonStyle())
+                .disabled(isSettingsOpening)
                 
                 Text("\(clipboardManager.clipboardItems.count) items")
                     .font(.system(size: 12))
@@ -653,30 +715,6 @@ struct LazyImageView: View {
                 self.nsImage = image
             }
         }
-    }
-}
-
-// Visual Effect View for macOS 11 and below
-struct VisualEffectView: NSViewRepresentable {
-    let material: NSVisualEffectView.Material
-    let blendingMode: NSVisualEffectView.BlendingMode
-    
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView()
-        view.material = material
-        view.blendingMode = blendingMode
-        view.state = .active
-        
-        // Make it similar to Finder's translucent effect
-        view.wantsLayer = true
-        view.layer?.cornerRadius = 0
-        
-        return view
-    }
-    
-    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
-        nsView.material = material
-        nsView.blendingMode = blendingMode
     }
 }
 

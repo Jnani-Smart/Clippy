@@ -7,7 +7,7 @@ struct ShortcutRecorder: View {
     @State private var tempKeyCombo: KeyCombo?
     
     var body: some View {
-        HStack {
+        HStack(spacing: 8) {
             if let combo = keyCombo {
                 Text(combo.displayString)
                     .frame(minWidth: 100)
@@ -23,7 +23,7 @@ struct ShortcutRecorder: View {
                     .foregroundColor(.secondary)
             }
             
-            Button(isRecording ? "Cancel" : "Record") {
+            Button(action: {
                 if isRecording {
                     // Cancel recording
                     isRecording = false
@@ -33,7 +33,15 @@ struct ShortcutRecorder: View {
                     isRecording = true
                     tempKeyCombo = nil
                 }
+            }) {
+                // Use SF Symbols that match macOS UI style
+                Image(systemName: isRecording ? "xmark.circle" : "record.circle")
+                    .font(.system(size: 14))
+                    .foregroundColor(isRecording ? .red : .accentColor)
+                    .frame(width: 24, height: 24)
             }
+            .buttonStyle(PlainButtonStyle())
+            .help(isRecording ? "Cancel recording" : "Record shortcut")
             
             if isRecording {
                 Text("Press keys...")
@@ -50,9 +58,19 @@ struct ShortcutRecorder: View {
             }
             
             if keyCombo != nil {
-                Button("Clear") {
-                    keyCombo = nil
+                Button(action: {
+                    // Instead of nil, set to default Cmd+Shift+V
+                    let defaultModifiers = NSEvent.ModifierFlags([.command, .shift])
+                    keyCombo = KeyCombo(key: 9, modifiers: defaultModifiers) // 9 is keycode for "V"
+                }) {
+                    // Use SF Symbol matching macOS reset/default symbol
+                    Image(systemName: "arrow.counterclockwise.circle")
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                        .frame(width: 24, height: 24)
                 }
+                .buttonStyle(PlainButtonStyle())
+                .help("Reset to default (⌘⇧V)")
             }
         }
     }
@@ -68,6 +86,17 @@ struct ShortcutRecorder: View {
             return
         }
         
+        // Prevent invalid key combinations - require at least one modifier
+        let hasModifier = event.modifierFlags.contains(.command) || 
+                         event.modifierFlags.contains(.option) || 
+                         event.modifierFlags.contains(.control) || 
+                         event.modifierFlags.contains(.shift)
+        
+        if !hasModifier {
+            // Don't allow key without modifier
+            return
+        }
+        
         // Create key combo from event
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         let newCombo = KeyCombo(key: Int(event.keyCode), modifiers: modifiers)
@@ -75,6 +104,15 @@ struct ShortcutRecorder: View {
         // Update bindings
         self.keyCombo = newCombo
         self.isRecording = false
+        
+        // Ensure the notification is posted
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            NotificationCenter.default.post(
+                name: Notification.Name("UpdateShortcuts"),
+                object: nil,
+                userInfo: ["keyCombo": newCombo]
+            )
+        }
     }
 }
 
@@ -136,4 +174,4 @@ extension KeyCombo {
         default: return "[\(keyCode)]"
         }
     }
-} 
+}

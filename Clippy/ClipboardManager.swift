@@ -14,6 +14,8 @@ class ClipboardManager: ObservableObject {
     private var lastUpdateTime = Date()
     private let updateThreshold: TimeInterval = 0.2
     private let maxImageSize: Int = 1024 * 1024 * 5 // 5MB limit for images
+    private var isInternalPasteboardChange = false
+    private var lastCopiedItemId: UUID?
     
     private var sensitiveContentPatterns: [NSRegularExpression] = [
         try! NSRegularExpression(pattern: #"(?:\d[ -]*?){13,16}"#), // Credit card
@@ -56,6 +58,11 @@ class ClipboardManager: ObservableObject {
     }
     
     private func checkForChanges() {
+        // Skip if we're in the middle of an internal clipboard operation
+        if isInternalPasteboardChange {
+            return
+        }
+        
         let now = Date()
         if now.timeIntervalSince(lastUpdateTime) < updateThreshold {
             return
@@ -148,6 +155,10 @@ class ClipboardManager: ObservableObject {
     }
     
     func copyItemToPasteboard(_ item: ClipboardItem) {
+        // Set flag to prevent recording our own paste operation
+        isInternalPasteboardChange = true
+        lastCopiedItemId = item.id
+        
         pasteboard.clearContents()
         
         switch item.type {
@@ -165,20 +176,25 @@ class ClipboardManager: ObservableObject {
             }
         }
         
+        // Update last change count to avoid detecting our own change
+        lastChangeCount = pasteboard.changeCount
+        
         DispatchQueue.main.async { [weak self] in
             print("Setting justCopied to true")
             self?.justCopied = true
             
+            // Move item to top of list if it exists
+            if let index = self?.clipboardItems.firstIndex(where: { $0.id == item.id }) {
+                let movedItem = self?.clipboardItems.remove(at: index)
+                self?.clipboardItems.insert(movedItem!, at: 0)
+                self?.saveItems()
+            }
+            
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
                 print("Setting justCopied back to false")
                 self?.justCopied = false
+                self?.isInternalPasteboardChange = false
             }
-        }
-        
-        if let index = clipboardItems.firstIndex(where: { $0.id == item.id }) {
-            let movedItem = clipboardItems.remove(at: index)
-            clipboardItems.insert(movedItem, at: 0)
-            saveItems()
         }
     }
     

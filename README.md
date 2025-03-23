@@ -1,14 +1,8 @@
 # Clippy - Modern Clipboard Manager for macOS
 
-![Clippy Screenshot](Clippy/screenshots/screenshot.png)
+![Clippy Screenshot](screenshots/screenshot.png)
 
 Clippy is a lightweight, elegant clipboard manager for macOS that helps you manage your clipboard history with style. Access your clipboard history instantly with a custom keyboard shortcut and enjoy a beautiful, frosted-glass interface inspired by macOS design.
-
-## Screenshots
-
-| Empty State | With Clipboard Items |
-|-------------|---------------------|
-| ![Empty State](Clippy/screenshots/empty_state.png) | ![With Items](Clippy/screenshots/with_items.png) |
 
 ## Features
 
@@ -27,15 +21,15 @@ Clippy is a lightweight, elegant clipboard manager for macOS that helps you mana
 
 ## Installation
 
-The first release is now available!
+**Note: After creating your first release, the download link below will be active.**
 
-1. Download the latest release from the [releases page](https://github.com/Jnani-Smart/Clippy/releases)
+1. Download the latest release from the [Releases page](../../releases/latest) of this repository
 2. Drag Clippy to your Applications folder
 3. Launch Clippy and grant necessary permissions
 
 ## Building from Source
 
-1. Clone the repository: `git clone https://github.com/Jnani-Smart/Clippy.git`
+1. Clone the repository: `git clone https://github.com/[YOUR_USERNAME]/Clippy.git`
 2. Open `Clippy.xcodeproj` in Xcode
 3. Build and run the project (⌘+R)
 
@@ -47,13 +41,9 @@ The first release is now available!
 - Right-click on items for additional options
 - Pin important items to keep them accessible
 
-## Documentation
+## Contributing
 
-- [Changelog](docs/CHANGELOG.md)
-- [User Guide](docs/USER_GUIDE.md)
-- [Contributing Guidelines](docs/contributing/CONTRIBUTING.md)
-- [Release Process](docs/release/RELEASE_INSTRUCTIONS.md)
-- [Roadmap](docs/roadmap.md)
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
