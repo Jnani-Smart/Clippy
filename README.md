@@ -1,6 +1,6 @@
 # Clippy - Modern Clipboard Manager for macOS
 
-![Clippy Screenshot](screenshots/screenshot.png)
+![Clippy Screenshot](screenshots/1.png)
 
 Clippy is a lightweight, elegant clipboard manager for macOS that helps you manage your clipboard history with style. Access your clipboard history instantly with a custom keyboard shortcut and enjoy a beautiful, frosted-glass interface inspired by macOS design.
 
@@ -16,6 +16,23 @@ Clippy is a lightweight, elegant clipboard manager for macOS that helps you mana
 - ⚡ **Efficient**: Minimal CPU and memory footprint
 - 🔒 **Privacy-focused**: Your clipboard data never leaves your device
 - 🔄 **Data Management**: Import/export your clipboard history
+
+## Screenshots
+
+### Basic View
+![Basic View](screenshots/1.png)
+
+### Rich Content Support
+![Rich Content](screenshots/2.png)
+
+### Category Filtering
+![Category Filtering](screenshots/3.png)
+
+### Empty State
+![Empty State](screenshots/4.png)
+
+### Settings Panel
+![Settings](screenshots/5.png)
 
 ## Requirements
 
