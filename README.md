@@ -13,7 +13,6 @@ Clippy is a lightweight, elegant clipboard manager for macOS that helps you mana
 - 🏷️ **Category Filtering**: Filter clipboard items by type (text, code, URL, image)
 - 💻 **Native Experience**: Designed to feel like a native macOS app with beautiful frosted glass UI
 - 🌙 **Dark Mode Support**: Seamlessly adapts to your macOS appearance
-- 📝 **Clean Interface**: Streamlined text-only options menu for clipboard items
 - ⚡ **Efficient**: Minimal CPU and memory footprint
 - 🔒 **Privacy-focused**: Your clipboard data never leaves your device
 - 🔄 **Data Management**: Import/export your clipboard history
@@ -46,8 +45,6 @@ Clippy is a lightweight, elegant clipboard manager for macOS that helps you mana
 - macOS 11.0 (Big Sur) or later
 
 ## Installation
-
-**Note: After creating your first release, the download link below will be active.**
 
 1. Download the latest release from the [Releases page](../../releases/latest) of this repository
 2. Drag Clippy to your Applications folder
