@@ -5,6 +5,26 @@ All notable changes to Clippy will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2024-08-17
+
+### Added
+- Source app information now displayed for each clipboard item
+- Improved handling for programming language detection
+- Enhanced "Save Image" functionality with standard save dialog
+- Redesigned clipboard item rows with VisionOS-inspired aesthetics
+
+### Changed
+- Fixed window positioning issue with Mac Spotlight
+- Refined hover states and interactive elements for better usability
+- Improved visual hierarchy with better spacing and layout
+- Updated pin button functionality with smoother animations
+- Enhanced context menu with better spacing and alignment
+
+### Fixed
+- Compiler errors related to sharing implementation
+- Memory management improvements for better performance
+- Type inference issues in code display components
+
 ## [1.4.0] - 2024-07-21
 
 ### Changed
