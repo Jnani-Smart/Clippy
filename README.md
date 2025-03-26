@@ -13,6 +13,7 @@ Clippy is a lightweight, elegant clipboard manager for macOS that helps you mana
 - 🏷️ **Category Filtering**: Filter clipboard items by type (text, code, URL, image)
 - 💻 **Native Experience**: Designed to feel like a native macOS app with beautiful frosted glass UI
 - 🌙 **Dark Mode Support**: Seamlessly adapts to your macOS appearance
+- 📝 **Clean Interface**: Streamlined text-only options menu for clipboard items
 - ⚡ **Efficient**: Minimal CPU and memory footprint
 - 🔒 **Privacy-focused**: Your clipboard data never leaves your device
 - 🔄 **Data Management**: Import/export your clipboard history
@@ -27,6 +28,9 @@ Clippy is a lightweight, elegant clipboard manager for macOS that helps you mana
 
 ### Category Filtering
 <img src="screenshots/3.png" width="300" alt="Category Filtering">
+
+### Text-Only Options Menu
+<img src="screenshots/6.png" width="300" alt="Text-Only Options Menu">
 
 ### Empty State
 <img src="screenshots/4.png" width="300" alt="Empty State">
@@ -58,7 +62,7 @@ Clippy is a lightweight, elegant clipboard manager for macOS that helps you mana
 - Click on any item to copy it and paste to the frontmost application
 - Use the search bar to filter items
 - Filter items by category (text, code, URL, image)
-- Right-click on items for additional options
+- Right-click on items to access the clean, text-only options menu
 - Pin important items to keep them accessible
 - Manage your clipboard data through the Settings panel
 
@@ -68,4 +72,8 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Version History
+
+For a complete list of changes and features added in each version, please see the [CHANGELOG](docs/CHANGELOG.md). 

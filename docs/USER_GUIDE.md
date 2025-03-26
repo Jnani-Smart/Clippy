@@ -25,6 +25,16 @@ When you first launch Clippy, you'll need to:
 - Browse your clipboard history
 - Click on any item to copy it to the clipboard and paste to the frontmost application
 
+### Item Options Menu
+
+- Right-click (or control-click) on any clipboard item to access the options menu
+- The options menu features a clean, text-only design for improved readability
+- Available options include:
+  - Copy: Copy the item to clipboard without pasting
+  - Pin/Unpin: Toggle pinned status for the item
+  - Delete: Remove the item from history
+  - Format-specific options (like "Open URL" for links or "Save Image" for images)
+
 ### Search
 
 - When the Clippy window is open, start typing to search
