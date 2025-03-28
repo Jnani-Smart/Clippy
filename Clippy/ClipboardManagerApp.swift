@@ -187,6 +187,11 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         
         // Additional services setup
         setupServices()
+        
+        // Show floating window automatically at startup
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.showFloatingWindow()
+        }
     }
     
     private func setupStatusBarItem() {
@@ -450,27 +455,73 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         
         // Add enhanced shadow for depth and floating appearance
         if let contentView = window.contentView, let layer = contentView.layer {
-            // Create subtle shadow like macOS Finder
-            layer.shadowOpacity = 0.25
+            // Create subtle shadow like visionOS
+            layer.shadowOpacity = 0.3
             layer.shadowColor = NSColor.black.cgColor
-            layer.shadowOffset = NSSize(width: 0, height: -1)
-            layer.shadowRadius = 15
+            layer.shadowOffset = NSSize(width: 0, height: 0)
+            layer.shadowRadius = 20
             
-            // Add subtle fade-in animation
+            // Add subtle ambient light reflection effect
+            let ambientLight = CALayer()
+            ambientLight.frame = contentView.bounds
+            ambientLight.cornerRadius = 28
+            ambientLight.masksToBounds = true
+            
+            // Create shine effect with gradient
+            let shineGradient = CAGradientLayer()
+            shineGradient.frame = contentView.bounds
+            shineGradient.cornerRadius = 28
+            
+            // Different shine effect based on appearance
+            if NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
+                shineGradient.colors = [
+                    NSColor.white.withAlphaComponent(0.05).cgColor,
+                    NSColor.clear.cgColor,
+                    NSColor.white.withAlphaComponent(0.02).cgColor
+                ]
+            } else {
+                shineGradient.colors = [
+                    NSColor.white.withAlphaComponent(0.2).cgColor,
+                    NSColor.clear.cgColor,
+                    NSColor.white.withAlphaComponent(0.1).cgColor
+                ]
+            }
+            
+            shineGradient.locations = [0.0, 0.5, 1.0]
+            shineGradient.startPoint = CGPoint(x: 0, y: 1)
+            shineGradient.endPoint = CGPoint(x: 1, y: 0)
+            ambientLight.addSublayer(shineGradient)
+            contentView.layer?.addSublayer(ambientLight)
+            
+            // Update shine frame when window is resized
+            NotificationCenter.default.addObserver(forName: NSView.frameDidChangeNotification, object: contentView, queue: nil) { _ in
+                ambientLight.frame = contentView.bounds
+                shineGradient.frame = contentView.bounds
+            }
+            
+            // Add enhanced fade-in animation
             let animation = CABasicAnimation(keyPath: "opacity")
             animation.fromValue = 0.0
             animation.toValue = 1.0
-            animation.duration = 0.18
+            animation.duration = 0.25
             animation.timingFunction = CAMediaTimingFunction(name: .easeOut)
             contentView.layer?.add(animation, forKey: "fadeIn")
             
-            // Add subtle scale animation
+            // Add enhanced scale animation for visionOS-like "appear" effect
             let scaleAnimation = CABasicAnimation(keyPath: "transform.scale")
-            scaleAnimation.fromValue = 0.98
+            scaleAnimation.fromValue = 0.96
             scaleAnimation.toValue = 1.0
-            scaleAnimation.duration = 0.18
+            scaleAnimation.duration = 0.25
             scaleAnimation.timingFunction = CAMediaTimingFunction(name: .easeOut)
             contentView.layer?.add(scaleAnimation, forKey: "scaleIn")
+            
+            // Add subtle float animation
+            let floatAnimation = CABasicAnimation(keyPath: "position.y")
+            floatAnimation.fromValue = contentView.layer?.position.y ?? 0 - 5
+            floatAnimation.toValue = contentView.layer?.position.y
+            floatAnimation.duration = 0.3
+            floatAnimation.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            contentView.layer?.add(floatAnimation, forKey: "floatIn")
         }
         
         // Ensure app is active and window is visible
@@ -536,10 +587,18 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         window.title = "Clipboard History"
         window.isReleasedWhenClosed = false
         
-        // Make the window appear on top of ALL other apps, including full screen apps
-        window.level = .popUpMenu // Use very high level (just below .screenSaver)
+        // Make the window appear on top but handle Spotlight better
+        // Use a slightly lower level than popUpMenu to avoid conflicts with Spotlight
+        window.level = .floating
         
-        // Configure window to appear on all spaces including full-screen apps
+        // Check if Spotlight is active and adjust behavior if needed
+        let isSpotlightActive = NSWorkspace.shared.frontmostApplication?.bundleIdentifier == "com.apple.Spotlight"
+        if isSpotlightActive {
+            // If Spotlight is active, use a lower window level to avoid conflicts
+            window.level = .normal
+        }
+        
+        // Configure window to appear on all spaces but with better compatibility
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         
         // Prevent full-screen apps from exiting full-screen when window appears
@@ -550,6 +609,14 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         
         // Set this window to be not movable by background
         window.isMovableByWindowBackground = false
+        
+        // Add a notification observer for when Spotlight activates or deactivates
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleAppActivationChange),
+            name: NSWorkspace.didActivateApplicationNotification,
+            object: nil
+        )
         
         // Make window appear with a nice animation - use popover style for modern feel
         window.animationBehavior = .utilityWindow
@@ -738,38 +805,88 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
             
             // Use dynamic border color that works in both light and dark mode
             if NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
-                containerView.layer?.borderColor = NSColor.white.withAlphaComponent(0.08).cgColor
+                containerView.layer?.borderColor = NSColor.white.withAlphaComponent(0.12).cgColor
+                
                 // Create a subtle gradient background for depth
                 let gradientLayer = CAGradientLayer()
                 gradientLayer.frame = containerView.bounds
                 gradientLayer.cornerRadius = 27
                 gradientLayer.colors = [
-                    NSColor.white.withAlphaComponent(0.05).cgColor,
+                    NSColor.white.withAlphaComponent(0.08).cgColor,
                     NSColor.white.withAlphaComponent(0.02).cgColor
                 ]
                 gradientLayer.locations = [0.0, 1.0]
                 containerView.layer?.insertSublayer(gradientLayer, at: 0)
                 
-                // Update gradient frame when container is resized
+                // Add visionOS-inspired corner reflections - top left
+                let topLeftReflection = CAGradientLayer()
+                topLeftReflection.frame = CGRect(x: 0, y: containerView.bounds.height - 100, width: 100, height: 100)
+                topLeftReflection.startPoint = CGPoint(x: 0, y: 0)
+                topLeftReflection.endPoint = CGPoint(x: 1, y: 1)
+                topLeftReflection.colors = [NSColor.white.withAlphaComponent(0.25).cgColor, NSColor.clear.cgColor]
+                topLeftReflection.locations = [0.0, 1.0]
+                topLeftReflection.cornerRadius = 27
+                topLeftReflection.masksToBounds = true
+                containerView.layer?.addSublayer(topLeftReflection)
+                
+                // Add visionOS-inspired corner reflections - bottom right
+                let bottomRightReflection = CAGradientLayer()
+                bottomRightReflection.frame = CGRect(x: containerView.bounds.width - 100, y: 0, width: 100, height: 100)
+                bottomRightReflection.startPoint = CGPoint(x: 1, y: 1)
+                bottomRightReflection.endPoint = CGPoint(x: 0, y: 0)
+                bottomRightReflection.colors = [NSColor.white.withAlphaComponent(0.15).cgColor, NSColor.clear.cgColor]
+                bottomRightReflection.locations = [0.0, 1.0]
+                bottomRightReflection.cornerRadius = 27
+                bottomRightReflection.masksToBounds = true
+                containerView.layer?.addSublayer(bottomRightReflection)
+                
+                // Update reflection frames when container is resized
                 NotificationCenter.default.addObserver(forName: NSView.frameDidChangeNotification, object: containerView, queue: nil) { _ in
                     gradientLayer.frame = containerView.bounds
+                    topLeftReflection.frame = CGRect(x: 0, y: containerView.bounds.height - 100, width: 100, height: 100)
+                    bottomRightReflection.frame = CGRect(x: containerView.bounds.width - 100, y: 0, width: 100, height: 100)
                 }
             } else {
-                containerView.layer?.borderColor = NSColor.black.withAlphaComponent(0.06).cgColor
+                containerView.layer?.borderColor = NSColor.black.withAlphaComponent(0.08).cgColor
+                
                 // Create a subtle gradient background for depth
                 let gradientLayer = CAGradientLayer()
                 gradientLayer.frame = containerView.bounds
                 gradientLayer.cornerRadius = 27
                 gradientLayer.colors = [
-                    NSColor.white.withAlphaComponent(0.3).cgColor,
-                    NSColor.white.withAlphaComponent(0.1).cgColor
+                    NSColor.white.withAlphaComponent(0.4).cgColor,
+                    NSColor.white.withAlphaComponent(0.2).cgColor
                 ]
                 gradientLayer.locations = [0.0, 1.0]
                 containerView.layer?.insertSublayer(gradientLayer, at: 0)
                 
-                // Update gradient frame when container is resized
+                // Add visionOS-inspired corner reflections - top left
+                let topLeftReflection = CAGradientLayer()
+                topLeftReflection.frame = CGRect(x: 0, y: containerView.bounds.height - 100, width: 100, height: 100)
+                topLeftReflection.startPoint = CGPoint(x: 0, y: 0)
+                topLeftReflection.endPoint = CGPoint(x: 1, y: 1)
+                topLeftReflection.colors = [NSColor.white.withAlphaComponent(0.8).cgColor, NSColor.clear.cgColor]
+                topLeftReflection.locations = [0.0, 1.0]
+                topLeftReflection.cornerRadius = 27
+                topLeftReflection.masksToBounds = true
+                containerView.layer?.addSublayer(topLeftReflection)
+                
+                // Add visionOS-inspired corner reflections - bottom right
+                let bottomRightReflection = CAGradientLayer()
+                bottomRightReflection.frame = CGRect(x: containerView.bounds.width - 100, y: 0, width: 100, height: 100)
+                bottomRightReflection.startPoint = CGPoint(x: 1, y: 1)
+                bottomRightReflection.endPoint = CGPoint(x: 0, y: 0)
+                bottomRightReflection.colors = [NSColor.white.withAlphaComponent(0.4).cgColor, NSColor.clear.cgColor]
+                bottomRightReflection.locations = [0.0, 1.0]
+                bottomRightReflection.cornerRadius = 27
+                bottomRightReflection.masksToBounds = true
+                containerView.layer?.addSublayer(bottomRightReflection)
+                
+                // Update reflection frames when container is resized
                 NotificationCenter.default.addObserver(forName: NSView.frameDidChangeNotification, object: containerView, queue: nil) { _ in
                     gradientLayer.frame = containerView.bounds
+                    topLeftReflection.frame = CGRect(x: 0, y: containerView.bounds.height - 100, width: 100, height: 100)
+                    bottomRightReflection.frame = CGRect(x: containerView.bounds.width - 100, y: 0, width: 100, height: 100)
                 }
             }
             
@@ -788,27 +905,73 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         
         // Add enhanced shadow for depth and floating appearance
         if let contentView = window.contentView, let layer = contentView.layer {
-            // Create subtle shadow like macOS Finder
-            layer.shadowOpacity = 0.25
+            // Create subtle shadow like visionOS
+            layer.shadowOpacity = 0.3
             layer.shadowColor = NSColor.black.cgColor
-            layer.shadowOffset = NSSize(width: 0, height: -1)
-            layer.shadowRadius = 15
+            layer.shadowOffset = NSSize(width: 0, height: 0)
+            layer.shadowRadius = 20
             
-            // Add subtle fade-in animation
+            // Add subtle ambient light reflection effect
+            let ambientLight = CALayer()
+            ambientLight.frame = contentView.bounds
+            ambientLight.cornerRadius = 28
+            ambientLight.masksToBounds = true
+            
+            // Create shine effect with gradient
+            let shineGradient = CAGradientLayer()
+            shineGradient.frame = contentView.bounds
+            shineGradient.cornerRadius = 28
+            
+            // Different shine effect based on appearance
+            if NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
+                shineGradient.colors = [
+                    NSColor.white.withAlphaComponent(0.05).cgColor,
+                    NSColor.clear.cgColor,
+                    NSColor.white.withAlphaComponent(0.02).cgColor
+                ]
+            } else {
+                shineGradient.colors = [
+                    NSColor.white.withAlphaComponent(0.2).cgColor,
+                    NSColor.clear.cgColor,
+                    NSColor.white.withAlphaComponent(0.1).cgColor
+                ]
+            }
+            
+            shineGradient.locations = [0.0, 0.5, 1.0]
+            shineGradient.startPoint = CGPoint(x: 0, y: 1)
+            shineGradient.endPoint = CGPoint(x: 1, y: 0)
+            ambientLight.addSublayer(shineGradient)
+            contentView.layer?.addSublayer(ambientLight)
+            
+            // Update shine frame when window is resized
+            NotificationCenter.default.addObserver(forName: NSView.frameDidChangeNotification, object: contentView, queue: nil) { _ in
+                ambientLight.frame = contentView.bounds
+                shineGradient.frame = contentView.bounds
+            }
+            
+            // Add enhanced fade-in animation
             let animation = CABasicAnimation(keyPath: "opacity")
             animation.fromValue = 0.0
             animation.toValue = 1.0
-            animation.duration = 0.18
+            animation.duration = 0.25
             animation.timingFunction = CAMediaTimingFunction(name: .easeOut)
             contentView.layer?.add(animation, forKey: "fadeIn")
             
-            // Add subtle scale animation
+            // Add enhanced scale animation for visionOS-like "appear" effect
             let scaleAnimation = CABasicAnimation(keyPath: "transform.scale")
-            scaleAnimation.fromValue = 0.98
+            scaleAnimation.fromValue = 0.96
             scaleAnimation.toValue = 1.0
-            scaleAnimation.duration = 0.18
+            scaleAnimation.duration = 0.25
             scaleAnimation.timingFunction = CAMediaTimingFunction(name: .easeOut)
             contentView.layer?.add(scaleAnimation, forKey: "scaleIn")
+            
+            // Add subtle float animation
+            let floatAnimation = CABasicAnimation(keyPath: "position.y")
+            floatAnimation.fromValue = contentView.layer?.position.y ?? 0 - 5
+            floatAnimation.toValue = contentView.layer?.position.y
+            floatAnimation.duration = 0.3
+            floatAnimation.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            contentView.layer?.add(floatAnimation, forKey: "floatIn")
         }
         
         // Finally show the window with animation
@@ -971,6 +1134,22 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
             name: Notification.Name("HistoryCleared"),
             object: nil
         )
+    }
+    
+    // Handle app activation changes to adjust window behavior when Spotlight appears
+    @objc func handleAppActivationChange(_ notification: Notification) {
+        if let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+           let bundleID = app.bundleIdentifier,
+           let window = self.floatingWindow {
+           
+            if bundleID == "com.apple.Spotlight" {
+                // Lower window level when Spotlight is active
+                window.level = .normal
+            } else {
+                // Restore window level for other apps
+                window.level = .floating
+            }
+        }
     }
 }
 

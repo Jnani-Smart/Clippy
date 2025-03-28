@@ -492,30 +492,7 @@ struct SettingsView: View {
     private var privacySettingsView: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                VisionOSGroupBox(title: "Privacy Settings") {
-                    VStack(alignment: .leading, spacing: 16) {
-                        VisionOSToggle(
-                            title: "Detect sensitive content", 
-                            description: "Detect sensitive data like credit cards, emails, and passwords",
-                            isOn: $detectSensitiveContent
-                        )
-                        
-                        VisionOSToggle(
-                            title: "Skip storing sensitive content", 
-                            description: "Automatically skip storing detected sensitive content",
-                            isOn: $skipSensitiveContent
-                        )
-                        .disabled(!detectSensitiveContent)
-                        .padding(.leading, 20)
-                        
-                        Divider().padding(.vertical, 4)
-                        
-                        Text("Your clipboard data is stored locally on your Mac and is never sent to any server.")
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                            .padding(.top, 4)
-                    }
-                }
+                PrivacySection()
                 
                 VisionOSButton(title: "Clear All History", role: .destructive, isInProgress: $isClearHistoryInProgress) {
                     guard !isClearHistoryInProgress else { return }
@@ -986,5 +963,195 @@ struct DraggableView: NSViewRepresentable {
             super.mouseUp(with: event)
             isDragging = false
         }
+    }
+}
+
+struct PrivacySection: View {
+    @AppStorage("detectSensitiveContent") private var detectSensitiveContent = true
+    @AppStorage("skipSensitiveContent") private var skipSensitiveContent = false
+    @AppStorage("encryptStorage") private var encryptStorage = false
+    @State private var excludedApps: [String] = []
+    @EnvironmentObject var clipboardManager: ClipboardManager
+    
+    var body: some View {
+        GroupBox(label: Text("Privacy").font(.headline)) {
+            VStack(alignment: .leading, spacing: 8) {
+                Toggle("Detect sensitive content", isOn: $detectSensitiveContent)
+                    .padding(.bottom, 4)
+                
+                if detectSensitiveContent {
+                    Toggle("Don't store sensitive content", isOn: $skipSensitiveContent)
+                        .padding(.leading, 20)
+                        
+                    Text("Sensitive content includes passwords, credit card numbers, and other personal information")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.leading, 20)
+                        .padding(.bottom, 8)
+                }
+                
+                Toggle("Encrypt clipboard storage", isOn: $encryptStorage)
+                    .padding(.bottom, 4)
+                
+                if encryptStorage {
+                    Text("All stored clipboard data will be encrypted on your device")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                Divider()
+                    .padding(.vertical, 8)
+                
+                Text("App Exclusions")
+                    .font(.headline)
+                    .padding(.bottom, 4)
+                
+                Text("Clippy won't monitor clipboard changes from these apps:")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(.bottom, 8)
+                
+                HStack {
+                    Button(action: {
+                        addExcludedApp()
+                    }) {
+                        Label("Add App", systemImage: "plus")
+                    }
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        excludedApps = []
+                        saveExcludedApps()
+                    }) {
+                        Text("Clear All")
+                    }
+                    .disabled(excludedApps.isEmpty)
+                }
+                
+                if !excludedApps.isEmpty {
+                    ScrollView(.vertical, showsIndicators: true) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            ForEach(excludedApps, id: \.self) { appId in
+                                HStack {
+                                    Text(appNameForBundleId(appId))
+                                        .font(.system(size: 12))
+                                    
+                                    Spacer()
+                                    
+                                    Button(action: {
+                                        removeExcludedApp(appId)
+                                    }) {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .foregroundColor(.gray)
+                                    }
+                                    .buttonStyle(BorderlessButtonStyle())
+                                }
+                                .padding(.vertical, 4)
+                            }
+                        }
+                    }
+                    .frame(height: min(CGFloat(excludedApps.count) * 30, 150))
+                }
+            }
+            .padding(8)
+        }
+        .padding(.bottom, 16)
+        .onAppear {
+            loadExcludedApps()
+        }
+    }
+    
+    private func addExcludedApp() {
+        let openPanel = NSOpenPanel()
+        openPanel.canChooseFiles = true
+        openPanel.canChooseDirectories = false
+        openPanel.allowsMultipleSelection = false
+        openPanel.allowedFileTypes = ["app"]
+        openPanel.directoryURL = URL(fileURLWithPath: "/Applications")
+        openPanel.message = "Select an application to exclude from clipboard monitoring"
+        openPanel.prompt = "Exclude"
+        
+        if openPanel.runModal() == .OK, let appUrl = openPanel.url {
+            // Try to get the bundle ID using Bundle
+            if let bundle = Bundle(url: appUrl) {
+                // Make sure we can get a valid bundle ID
+                if let bundleId = bundle.bundleIdentifier, !bundleId.isEmpty {
+                    if !excludedApps.contains(bundleId) {
+                        excludedApps.append(bundleId)
+                        saveExcludedApps()
+                        
+                        // Force notification of change
+                        NotificationCenter.default.post(
+                            name: NSNotification.Name("ExcludedAppsChanged"),
+                            object: nil,
+                            userInfo: ["excludedApps": excludedApps]
+                        )
+                    }
+                    return
+                }
+            }
+            
+            // Fallback method if Bundle fails
+            let runningApps = NSWorkspace.shared.runningApplications
+            for app in runningApps {
+                if app.bundleURL == appUrl, let bundleId = app.bundleIdentifier, !bundleId.isEmpty {
+                    if !excludedApps.contains(bundleId) {
+                        excludedApps.append(bundleId)
+                        saveExcludedApps()
+                        
+                        // Force notification of change
+                        NotificationCenter.default.post(
+                            name: NSNotification.Name("ExcludedAppsChanged"),
+                            object: nil,
+                            userInfo: ["excludedApps": excludedApps]
+                        )
+                    }
+                    return
+                }
+            }
+            
+            // Alert user if we couldn't get the bundle ID
+            let alert = NSAlert()
+            alert.messageText = "Could not determine bundle identifier"
+            alert.informativeText = "The app couldn't be excluded because its bundle identifier could not be determined."
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+        }
+    }
+    
+    private func removeExcludedApp(_ appId: String) {
+        if let index = excludedApps.firstIndex(of: appId) {
+            excludedApps.remove(at: index)
+            saveExcludedApps()
+            
+            // Force notification of change
+            NotificationCenter.default.post(
+                name: NSNotification.Name("ExcludedAppsChanged"),
+                object: nil,
+                userInfo: ["excludedApps": excludedApps]
+            )
+        }
+    }
+    
+    private func saveExcludedApps() {
+        UserDefaults.standard.set(excludedApps, forKey: "excludedApps")
+        UserDefaults.standard.synchronize() // Force immediate save
+    }
+    
+    private func loadExcludedApps() {
+        excludedApps = UserDefaults.standard.stringArray(forKey: "excludedApps") ?? []
+    }
+    
+    private func appNameForBundleId(_ bundleId: String) -> String {
+        // Try to get the app name from the bundle ID
+        let workspace = NSWorkspace.shared
+        if let appUrl = workspace.urlForApplication(withBundleIdentifier: bundleId),
+           let bundle = Bundle(url: appUrl),
+           let appName = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String {
+            return appName
+        }
+        return bundleId
     }
 }

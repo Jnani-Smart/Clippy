@@ -75,23 +75,25 @@ enum CodeLanguage: String, Codable, CaseIterable {
     
     var color: Color {
         switch self {
-        case .swift: return Color.orange
-        case .python: return Color.blue
-        case .javascript, .typescript: return Color.yellow
-        case .html, .xml: return Color.red
-        case .css: return Color.blue
-        case .c, .cpp, .csharp: return Color.indigo
-        case .java: return Color.red
-        case .go: return Color.cyan
-        case .rust: return Color.orange
-        case .ruby: return Color.red
-        case .php: return Color.purple
-        case .sql: return Color.green
-        case .markdown: return Color.blue
-        case .json: return Color.yellow
-        case .yaml: return Color.green
-        case .bash: return Color.gray
-        case .clike: return Color.secondary
+        case .swift: return Color(red: 1.0, green: 0.5, blue: 0.0) // Brighter orange
+        case .python: return Color(red: 0.0, green: 0.7, blue: 1.0) // Brighter blue
+        case .javascript, .typescript: return Color(red: 0.95, green: 0.8, blue: 0.0) // Vibrant yellow
+        case .html, .xml: return Color(red: 0.95, green: 0.2, blue: 0.2) // Bright red
+        case .css: return Color(red: 0.2, green: 0.6, blue: 0.95) // Bright blue
+        case .c: return Color(red: 0.1, green: 0.8, blue: 0.8) // Bright teal (new color for C)
+        case .cpp: return Color(red: 0.7, green: 0.3, blue: 1.0) // Vibrant purple for C++
+        case .csharp: return Color(red: 0.4, green: 0.65, blue: 1.0) // Brighter blue-purple for C#
+        case .java: return Color(red: 0.95, green: 0.4, blue: 0.1) // Vibrant red-orange
+        case .go: return Color(red: 0.1, green: 0.8, blue: 0.8) // Bright cyan
+        case .rust: return Color(red: 0.95, green: 0.5, blue: 0.0) // Vibrant orange
+        case .ruby: return Color(red: 0.95, green: 0.15, blue: 0.15) // Bright red
+        case .php: return Color(red: 0.7, green: 0.3, blue: 0.9) // Bright purple
+        case .sql: return Color(red: 0.2, green: 0.85, blue: 0.4) // Bright green
+        case .markdown: return Color(red: 0.2, green: 0.6, blue: 0.95) // Bright blue
+        case .json: return Color(red: 0.95, green: 0.75, blue: 0.1) // Bright gold
+        case .yaml: return Color(red: 0.3, green: 0.85, blue: 0.5) // Bright green
+        case .bash: return Color(red: 0.6, green: 0.6, blue: 0.6) // Medium gray
+        case .clike: return Color(red: 0.6, green: 0.6, blue: 0.8) // Bluish gray
         }
     }
 }
@@ -485,5 +487,99 @@ extension ClipboardItem {
     private func highlightHTMLTags(in attributedString: NSMutableAttributedString) {
         let pattern = "<[^>]+>"
         highlightPattern(pattern, in: attributedString, withColor: NSColor.blue)
+    }
+}
+
+// NSImage extensions for optimized processing
+extension NSImage {
+    func resizedImageData(to newSize: CGSize, compressionQuality: CGFloat = 0.8) -> Data? {
+        guard let cgImage = self.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            return nil
+        }
+        
+        // Create bitmap context with new size
+        let bitmapRep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: Int(newSize.width),
+            pixelsHigh: Int(newSize.height),
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        )
+        
+        bitmapRep?.size = newSize
+        
+        // Draw the image in the bitmap
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmapRep!)
+        NSGraphicsContext.current?.imageInterpolation = .high
+        
+        let drawRect = NSRect(origin: .zero, size: newSize)
+        NSGraphicsContext.current?.cgContext.draw(cgImage, in: drawRect)
+        
+        NSGraphicsContext.restoreGraphicsState()
+        
+        // Generate compressed JPEG data
+        return bitmapRep?.representation(using: .jpeg, properties: [.compressionFactor: compressionQuality])
+    }
+    
+    func compressedImageData(compressionQuality: CGFloat = 0.8) -> Data? {
+        // Create bitmap representation of the image
+        if let tiffData = self.tiffRepresentation,
+           let bitmapRep = NSBitmapImageRep(data: tiffData) {
+            // Return JPEG representation at specified quality
+            return bitmapRep.representation(using: .jpeg, properties: [.compressionFactor: compressionQuality])
+        }
+        return nil
+    }
+    
+    // Cache-friendly variant of downsample
+    func downsample(to targetSize: CGSize) -> Data? {
+        // Use resizedImageData with memory optimization
+        return resizedImageData(to: targetSize, compressionQuality: 0.7)
+    }
+}
+
+// Add image caching for better performance
+final class ImageCache {
+    static let shared = ImageCache()
+    
+    private var cache = NSCache<NSString, NSImage>()
+    private let queue = DispatchQueue(label: "com.clippy.imageCache", qos: .utility)
+    
+    private init() {
+        // Set reasonable memory limits
+        cache.countLimit = 50  // Max number of images
+        cache.totalCostLimit = 100 * 1024 * 1024  // 100MB limit
+    }
+    
+    func image(for key: String, data: Data) -> NSImage {
+        let nsKey = NSString(string: key)
+        
+        // Check if image is already in cache
+        if let cachedImage = cache.object(forKey: nsKey) {
+            return cachedImage
+        }
+        
+        // Otherwise create and cache it
+        if let image = NSImage(data: data) {
+            queue.async { [weak self] in
+                self?.cache.setObject(image, forKey: nsKey, cost: data.count)
+            }
+            return image
+        }
+        
+        // Return empty image as fallback
+        return NSImage()
+    }
+    
+    func clearCache() {
+        queue.async { [weak self] in
+            self?.cache.removeAllObjects()
+        }
     }
 } 

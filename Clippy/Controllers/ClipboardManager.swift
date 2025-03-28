@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import Combine
+import CryptoKit
 
 class ClipboardManager: ObservableObject {
     @Published var clipboardItems: [ClipboardItem] = []
@@ -16,12 +17,32 @@ class ClipboardManager: ObservableObject {
     private let maxImageSize: Int = 1024 * 1024 * 5 // 5MB limit for images
     private var isInternalPasteboardChange = false
     private var lastCopiedItemId: UUID?
+    private let serialProcessingQueue = DispatchQueue(label: "com.clippy.serialProcessing")
     
+    // Enhanced sensitive content patterns
     private var sensitiveContentPatterns: [NSRegularExpression] = [
         try! NSRegularExpression(pattern: #"(?:\d[ -]*?){13,16}"#), // Credit card
         try! NSRegularExpression(pattern: #"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"#), // Email
-        try! NSRegularExpression(pattern: #"\b(?:\d{1,3}\.){3}\d{1,3}\b"#) // IP address
+        try! NSRegularExpression(pattern: #"\b(?:\d{1,3}\.){3}\d{1,3}\b"#), // IP address
+        try! NSRegularExpression(pattern: #"(?:password|passwd|pwd)[\s:=]+\S+"#, options: .caseInsensitive), // Passwords
+        try! NSRegularExpression(pattern: #"[A-Z]{2}\d{2}(?:[ ]\d{4}[ ]\d{4}[ ]\d{4}[ ]\d{4}[ ]\d{4}|[-]\d{4}[-]\d{4}[-]\d{4}[-]\d{4}[-]\d{4}|\d{16})"#), // IBAN
+        try! NSRegularExpression(pattern: #"[0-9a-fA-F]{64}"#) // SHA-256 hashes or private keys
     ]
+    
+    // List of apps to exclude from monitoring - always get fresh values
+    private var excludedApps: [String] {
+        return UserDefaults.standard.stringArray(forKey: "excludedApps") ?? []
+    }
+    
+    // Encryption key derived from device identifier
+    private lazy var encryptionKey: SymmetricKey = {
+        let deviceID = UserDefaults.standard.string(forKey: "deviceIdentifier") 
+            ?? (uniqueDeviceIdentifier().data(using: .utf8)!.base64EncodedString())
+        UserDefaults.standard.set(deviceID, forKey: "deviceIdentifier")
+        
+        let keyData = SHA256.hash(data: deviceID.data(using: .utf8)!)
+        return SymmetricKey(data: keyData)
+    }()
     
     init() {
         lastChangeCount = pasteboard.changeCount
@@ -29,6 +50,16 @@ class ClipboardManager: ObservableObject {
         // Enable categories by default if the setting doesn't exist yet
         if UserDefaults.standard.object(forKey: "enableCategories") == nil {
             UserDefaults.standard.set(true, forKey: "enableCategories")
+        }
+        
+        // Enable sensitive content detection by default
+        if UserDefaults.standard.object(forKey: "detectSensitiveContent") == nil {
+            UserDefaults.standard.set(true, forKey: "detectSensitiveContent")
+        }
+        
+        // Enable encryption by default for better privacy
+        if UserDefaults.standard.object(forKey: "encryptStorage") == nil {
+            UserDefaults.standard.set(true, forKey: "encryptStorage")
         }
         
         loadSavedItems()
@@ -43,12 +74,27 @@ class ClipboardManager: ObservableObject {
         ) { [weak self] _ in
             self?.setupAutoDeleteTimer()
         }
+        
+        // Listen for excluded apps changes
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("ExcludedAppsChanged"),
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            if let apps = notification.userInfo?["excludedApps"] as? [String] {
+                // The array is already saved to UserDefaults, just log it
+                #if DEBUG
+                print("Updated excluded apps: \(apps)")
+                #endif
+            }
+        }
     }
     
     deinit {
         stopMonitoring()
         autoDeleteTimer?.invalidate()
         autoDeleteTimer = nil
+        NotificationCenter.default.removeObserver(self)
     }
     
     func startMonitoring() {
@@ -69,18 +115,26 @@ class ClipboardManager: ObservableObject {
             return
         }
         
+        // Optimize polling by checking time threshold
         let now = Date()
         if now.timeIntervalSince(lastUpdateTime) < updateThreshold {
             return
         }
         
+        // Only process if change count actually changed
         let currentCount = pasteboard.changeCount
         guard currentCount != lastChangeCount else { return }
         
         lastChangeCount = currentCount
         lastUpdateTime = now
         
-        DispatchQueue.global(qos: .utility).async { [weak self] in
+        // Check if current app is excluded
+        if shouldExcludeCurrentApp() {
+            return
+        }
+        
+        // Use serial queue to ensure ordered processing
+        serialProcessingQueue.async { [weak self] in
             guard let self = self else { return }
             
             if let url = self.pasteboard.string(forType: .string),
@@ -95,6 +149,46 @@ class ClipboardManager: ObservableObject {
         }
     }
     
+    private func shouldExcludeCurrentApp() -> Bool {
+        guard !excludedApps.isEmpty else { return false }
+        
+        // Get the frontmost app's bundle identifier using multiple methods for reliability
+        if let frontmostApp = NSWorkspace.shared.frontmostApplication {
+            let bundleId = frontmostApp.bundleIdentifier ?? ""
+            let appName = frontmostApp.localizedName ?? "Unknown"
+            
+            // For debugging
+            #if DEBUG
+            print("Current app: \(appName) (\(bundleId))")
+            print("Excluded apps: \(excludedApps)")
+            #endif
+            
+            // Check if the app is in our exclusion list
+            for excludedId in excludedApps {
+                if bundleId == excludedId {
+                    #if DEBUG
+                    print("Excluding clipboard from: \(appName)")
+                    #endif
+                    return true
+                }
+            }
+        } else {
+            // Try alternate method to detect active app
+            let runningApps = NSWorkspace.shared.runningApplications
+            let activeApps = runningApps.filter { $0.isActive }
+            
+            if let activeApp = activeApps.first {
+                let bundleId = activeApp.bundleIdentifier ?? ""
+                
+                if excludedApps.contains(bundleId) {
+                    return true
+                }
+            }
+        }
+        
+        return false
+    }
+    
     func addItem(_ string: String) {
         guard !string.isEmpty else { return }
         if let firstItem = clipboardItems.first, firstItem.type == .text && firstItem.text == string {
@@ -106,8 +200,9 @@ class ClipboardManager: ObservableObject {
                 return
             }
             
-            let maskedString = maskSensitiveContent(string)
-            let newItem = ClipboardItem(text: maskedString, originalText: string)
+            // No longer mask the content with bullet points
+            // Store the content directly but mark it as sensitive
+            let newItem = ClipboardItem(text: string, isSensitive: true)
             
             DispatchQueue.main.async {
                 self.clipboardItems.insert(newItem, at: 0)
@@ -170,7 +265,16 @@ class ClipboardManager: ObservableObject {
         switch item.type {
         case .text:
             if let text = item.text {
-                pasteboard.setString(text, forType: .string)
+                // If it's sensitive, decrypt the original text for pasting
+                if item.isSensitive, let originalText = item.originalText {
+                    if let decryptedText = decrypt(originalText) {
+                        pasteboard.setString(decryptedText, forType: .string)
+                    } else {
+                        pasteboard.setString(text, forType: .string)
+                    }
+                } else {
+                    pasteboard.setString(text, forType: .string)
+                }
             }
         case .image:
             if let imageData = item.imageData {
@@ -186,52 +290,215 @@ class ClipboardManager: ObservableObject {
         lastChangeCount = pasteboard.changeCount
         
         DispatchQueue.main.async { [weak self] in
-            print("Setting justCopied to true")
             self?.justCopied = true
             
             // Move item to top of list if it exists
             if let index = self?.clipboardItems.firstIndex(where: { $0.id == item.id }) {
                 // Create a new item with the same content to trigger code detection
                 if item.type == .text, let text = item.text {
-                    let newItem = ClipboardItem(text: text, originalText: item.originalText)
+                    let newItem = ClipboardItem(
+                        text: text,
+                        originalText: item.originalText,
+                        isSensitive: item.isSensitive
+                    )
                     self?.clipboardItems.remove(at: index)
                     self?.clipboardItems.insert(newItem, at: 0)
                 } else {
-                    let movedItem = self?.clipboardItems.remove(at: index)
-                    self?.clipboardItems.insert(movedItem!, at: 0)
+                    if let movedItem = self?.clipboardItems.remove(at: index) {
+                        self?.clipboardItems.insert(movedItem, at: 0)
+                    }
                 }
                 self?.saveItems()
             }
             
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                print("Setting justCopied back to false")
                 self?.justCopied = false
                 self?.isInternalPasteboardChange = false
             }
         }
     }
     
+    // MARK: - Encryption Methods
+    
+    private func uniqueDeviceIdentifier() -> String {
+        let hostName = ProcessInfo.processInfo.hostName
+        let userName = ProcessInfo.processInfo.userName
+        let modelIdentifier = getModelIdentifier()
+        return "\(hostName)-\(userName)-\(modelIdentifier)"
+    }
+    
+    private func getModelIdentifier() -> String {
+        var size = 0
+        sysctlbyname("hw.model", nil, &size, nil, 0)
+        var model = [CChar](repeating: 0, count: size)
+        sysctlbyname("hw.model", &model, &size, nil, 0)
+        return String(cString: model)
+    }
+    
+    private func encrypt(_ string: String) -> String {
+        guard let data = string.data(using: .utf8) else {
+            return string
+        }
+        
+        do {
+            let encryptedData = try ChaChaPoly.seal(data, using: encryptionKey).combined
+            return encryptedData.base64EncodedString()
+        } catch {
+            return string
+        }
+    }
+    
+    private func decrypt(_ base64String: String) -> String? {
+        guard let data = Data(base64Encoded: base64String) else {
+            return nil
+        }
+        
+        do {
+            let sealedBox = try ChaChaPoly.SealedBox(combined: data)
+            let decryptedData = try ChaChaPoly.open(sealedBox, using: encryptionKey)
+            return String(data: decryptedData, encoding: .utf8)
+        } catch {
+            return nil
+        }
+    }
+    
     private func saveItems() {
         let encoder = JSONEncoder()
-        let textItems = clipboardItems.filter { $0.type != .image }.prefix(maxItems)
         
+        // Create filtered versions for storage with size optimization
+        let storableItems: [ClipboardItem] = clipboardItems.compactMap { item in
+            // Skip large images for persistent storage
+            if item.type == .image && (item.imageData?.count ?? 0) > 500000 {
+                return nil
+            }
+            
+            return item
+        }
+        
+        // Use background queue for saving
         DispatchQueue.global(qos: .background).async {
-            if let encoded = try? encoder.encode(Array(textItems)) {
-                UserDefaults.standard.set(encoded, forKey: "savedClipboardItems")
+            // Save items with better error handling
+            do {
+                let encoded = try encoder.encode(storableItems)
+                
+                // Encrypt the entire storage if privacy setting enabled
+                if UserDefaults.standard.bool(forKey: "encryptStorage") {
+                    let encryptedData = self.encryptData(encoded)
+                    UserDefaults.standard.set(encryptedData, forKey: "savedClipboardItems")
+                } else {
+                    UserDefaults.standard.set(encoded, forKey: "savedClipboardItems")
+                }
+            } catch {
+                print("Error saving clipboard items: \(error)")
             }
         }
     }
     
     private func loadSavedItems() {
-        if let savedData = UserDefaults.standard.data(forKey: "savedClipboardItems"),
-           let loadedItems = try? JSONDecoder().decode([ClipboardItem].self, from: savedData) {
-            clipboardItems = loadedItems
+        if let savedData = UserDefaults.standard.data(forKey: "savedClipboardItems") {
+            // Try to decrypt if needed
+            let dataToLoad: Data
+            if UserDefaults.standard.bool(forKey: "encryptStorage") {
+                if let decryptedData = decryptData(savedData) {
+                    dataToLoad = decryptedData
+                } else {
+                    dataToLoad = savedData // Fall back to using as-is
+                }
+            } else {
+                dataToLoad = savedData
+            }
+            
+            do {
+                let loadedItems = try JSONDecoder().decode([ClipboardItem].self, from: dataToLoad)
+                clipboardItems = loadedItems
+            } catch {
+                print("Error loading clipboard items: \(error)")
+                // If loading fails, start with empty list
+                clipboardItems = []
+            }
         }
         
-        // Load pinned items
-        if let savedData = UserDefaults.standard.data(forKey: "pinnedClipboardItems"),
-           let loadedItems = try? JSONDecoder().decode([ClipboardItem].self, from: savedData) {
-            pinnedItems = loadedItems
+        // Load pinned items with similar approach
+        if let savedData = UserDefaults.standard.data(forKey: "pinnedClipboardItems") {
+            // Try to decrypt if needed
+            let dataToLoad: Data
+            if UserDefaults.standard.bool(forKey: "encryptStorage") {
+                if let decryptedData = decryptData(savedData) {
+                    dataToLoad = decryptedData
+                } else {
+                    dataToLoad = savedData
+                }
+            } else {
+                dataToLoad = savedData
+            }
+            
+            do {
+                let loadedItems = try JSONDecoder().decode([ClipboardItem].self, from: dataToLoad)
+                pinnedItems = loadedItems
+            } catch {
+                print("Error loading pinned items: \(error)")
+                pinnedItems = []
+            }
+        }
+        
+        // Run cleanup to remove any items that should be expired
+        DispatchQueue.global(qos: .background).async { [weak self] in
+            self?.runAutoCleanup()
+        }
+    }
+    
+    private func runAutoCleanup() {
+        let autoDeleteDays = UserDefaults.standard.integer(forKey: "autoDeleteDays")
+        
+        // Default to 7 days if not set
+        let daysToKeep = autoDeleteDays > 0 ? autoDeleteDays : 7
+        
+        // Calculate cutoff date
+        let cutoffDate = Calendar.current.date(byAdding: .day, value: -daysToKeep, to: Date())!
+        
+        // Special handling for sensitive data, expires after 1 day regardless of setting
+        let sensitiveCutoffDate = Calendar.current.date(byAdding: .hour, value: -24, to: Date())!
+        
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            // Filter out expired items
+            self.clipboardItems = self.clipboardItems.filter { item in
+                // Keep pinned items regardless of age
+                if self.isPinned(item) {
+                    return true
+                }
+                
+                // Remove sensitive items after 24 hours
+                if item.isSensitive && item.timestamp < sensitiveCutoffDate {
+                    return false
+                }
+                
+                // Keep items that are newer than the cutoff date
+                return item.timestamp >= cutoffDate
+            }
+            
+            // Save the filtered list
+            self.saveItems()
+        }
+    }
+    
+    // Encryption helpers for entire datasets
+    private func encryptData(_ data: Data) -> Data {
+        do {
+            let sealedBox = try ChaChaPoly.seal(data, using: encryptionKey)
+            return sealedBox.combined
+        } catch {
+            return data
+        }
+    }
+    
+    private func decryptData(_ data: Data) -> Data? {
+        do {
+            let sealedBox = try ChaChaPoly.SealedBox(combined: data)
+            return try ChaChaPoly.open(sealedBox, using: encryptionKey)
+        } catch {
+            return nil
         }
     }
     
@@ -241,16 +508,60 @@ class ClipboardManager: ObservableObject {
     }
     
     private func optimizeImageData(_ data: Data) -> Data {
-        if data.count <= maxImageSize {
+        // If already small enough, return as is
+        if data.count <= 100 * 1024 {  // Under 100KB is fine
             return data
         }
         
-        if let image = NSImage(data: data),
-           let downsampledData = image.downsample(to: CGSize(width: 800, height: 800)) {
-            return downsampledData
+        // Use a serial background queue for image processing
+        let processingQueue = DispatchQueue(label: "com.clippy.imageProcessing", qos: .utility)
+        let result = DispatchSemaphore(value: 0)
+        var optimizedData = data
+        
+        processingQueue.async {
+            autoreleasepool {
+                if let image = NSImage(data: data) {
+                    // Calculate target size - preserve aspect ratio but limit dimensions
+                    let maxDimension: CGFloat = 800
+                    let originalSize = image.size
+                    
+                    var targetSize = originalSize
+                    if originalSize.width > maxDimension || originalSize.height > maxDimension {
+                        let aspectRatio = originalSize.width / originalSize.height
+                        
+                        if aspectRatio > 1 {
+                            // Width is larger
+                            targetSize = CGSize(width: maxDimension, height: maxDimension / aspectRatio)
+                        } else {
+                            // Height is larger or square
+                            targetSize = CGSize(width: maxDimension * aspectRatio, height: maxDimension)
+                        }
+                    }
+                    
+                    // Check if we need to resize
+                    if targetSize.width < originalSize.width {
+                        if let resizedData = image.resizedImageData(to: targetSize, compressionQuality: 0.7) {
+                            // Only use the resized version if it's actually smaller
+                            if resizedData.count < data.count {
+                                optimizedData = resizedData
+                            }
+                        }
+                    } else {
+                        // Just compress without resizing if dimensions are already small
+                        if let compressedData = image.compressedImageData(compressionQuality: 0.7) {
+                            if compressedData.count < data.count {
+                                optimizedData = compressedData
+                            }
+                        }
+                    }
+                }
+            }
+            result.signal()
         }
         
-        return data
+        // Wait for processing to complete with timeout
+        _ = result.wait(timeout: .now() + 1.0)
+        return optimizedData
     }
     
     func togglePinStatus(_ item: ClipboardItem) {
@@ -288,22 +599,10 @@ class ClipboardManager: ObservableObject {
         return false
     }
     
+    // Method no longer needed, but keeping the function signature in case it's called elsewhere
     private func maskSensitiveContent(_ text: String) -> String {
-        var result = text
-        
-        for pattern in sensitiveContentPatterns {
-            let range = NSRange(location: 0, length: text.utf16.count)
-            let matches = pattern.matches(in: text, options: [], range: range)
-            
-            for match in matches.reversed() {
-                if let range = Range(match.range, in: result) {
-                    let replacement = String(repeating: "•", count: result[range].count)
-                    result.replaceSubrange(range, with: replacement)
-                }
-            }
-        }
-        
-        return result
+        // Return the original text instead of masking it
+        return text
     }
     
     func exportHistory() -> URL? {
@@ -426,66 +725,22 @@ class ClipboardManager: ObservableObject {
     }
     
     private func setupAutoDeleteTimer() {
-        // Clear any existing timer
+        // Cancel existing timer
         autoDeleteTimer?.invalidate()
         autoDeleteTimer = nil
         
-        // Check if auto-delete is enabled
-        let enableAutoDelete = UserDefaults.standard.bool(forKey: "enableAutoDelete")
-        if !enableAutoDelete {
-            return
-        }
+        // Only set up auto-delete if enabled
+        let autoDeleteEnabled = UserDefaults.standard.bool(forKey: "enableAutoDelete")
+        guard autoDeleteEnabled else { return }
         
-        // Set up timer to check for old items regularly
+        // Set up a timer to run every 5 minutes to clean up old items
         autoDeleteTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak self] _ in
-            self?.cleanupOldItems()
+            self?.runAutoCleanup()
         }
         
-        // Also clean up immediately
-        cleanupOldItems()
-    }
-    
-    private func cleanupOldItems() {
-        // Only proceed if auto-delete is enabled
-        let enableAutoDelete = UserDefaults.standard.bool(forKey: "enableAutoDelete")
-        if !enableAutoDelete {
-            return
-        }
-        
-        // Get the auto-delete duration
-        let autoDeleteDuration = UserDefaults.standard.integer(forKey: "autoDeleteDuration")
-        if autoDeleteDuration <= 0 {
-            return
-        }
-        
-        let now = Date()
-        var itemsDeleted = false
-        
-        // Filter out items that are older than the auto-delete duration
-        // Don't delete pinned items
-        clipboardItems = clipboardItems.filter { item in
-            // Skip pinned items
-            if pinnedItems.contains(where: { $0.id == item.id }) {
-                return true
-            }
-            
-            // Calculate the age of the item
-            let itemAge = now.timeIntervalSince(item.timestamp)
-            
-            // Keep the item if it's newer than the auto-delete duration
-            let shouldKeep = itemAge < Double(autoDeleteDuration)
-            
-            // Track if any items were deleted
-            if !shouldKeep {
-                itemsDeleted = true
-            }
-            
-            return shouldKeep
-        }
-        
-        // Save changes if any items were deleted
-        if itemsDeleted {
-            saveItems()
+        // Also run cleanup immediately
+        DispatchQueue.global(qos: .background).async { [weak self] in
+            self?.runAutoCleanup()
         }
     }
 }
@@ -542,8 +797,10 @@ struct ClipboardItem: Identifiable, Codable {
     let url: URL?
     let originalText: String?
     var category: ClipboardCategory?
+    let isSensitive: Bool
+    var sourceApp: String?
     
-    init(text: String, originalText: String? = nil) {
+    init(text: String, originalText: String? = nil, isSensitive: Bool = false) {
         if let url = URL(string: text), url.scheme != nil {
             self.type = .url
             self.text = text
@@ -551,12 +808,14 @@ struct ClipboardItem: Identifiable, Codable {
             self.imageData = nil
             self.originalText = originalText
             self.category = .url
+            self.isSensitive = isSensitive
         } else {
             self.type = .text
             self.text = text
             self.url = nil
             self.imageData = nil
             self.originalText = originalText
+            self.isSensitive = isSensitive
             
             // Always check for code detection, regardless of categories setting
             let isCode = self.detectedLanguage != nil
@@ -568,6 +827,9 @@ struct ClipboardItem: Identifiable, Codable {
                 self.category = nil
             }
         }
+        
+        // Capture the source app
+        self.sourceApp = ClipboardItem.getCurrentAppName()
     }
     
     init(imageData: Data) {
@@ -576,7 +838,11 @@ struct ClipboardItem: Identifiable, Codable {
         self.url = nil
         self.imageData = imageData
         self.originalText = nil
+        self.isSensitive = false
         self.category = .image
+        
+        // Capture the source app
+        self.sourceApp = ClipboardItem.getCurrentAppName()
     }
     
     init(url: URL) {
@@ -585,7 +851,20 @@ struct ClipboardItem: Identifiable, Codable {
         self.url = url
         self.imageData = nil
         self.originalText = nil
+        self.isSensitive = false
         self.category = .url
+        
+        // Capture the source app
+        self.sourceApp = ClipboardItem.getCurrentAppName()
+    }
+    
+    // Get the current active application name
+    static func getCurrentAppName() -> String? {
+        // Get the frontmost app using NSWorkspace
+        if let frontmostApp = NSWorkspace.shared.frontmostApplication {
+            return frontmostApp.localizedName
+        }
+        return nil
     }
     
     var preview: String {
@@ -608,24 +887,6 @@ struct ClipboardItem: Identifiable, Codable {
     }
     
     enum CodingKeys: String, CodingKey {
-        case id, timestamp, type, text, imageData, url, originalText, category
-    }
-}
-
-extension NSImage {
-    func downsample(to targetSize: CGSize) -> Data? {
-        let targetRect = CGRect(origin: .zero, size: targetSize)
-        let newImage = NSImage(size: targetSize)
-        
-        newImage.lockFocus()
-        draw(in: targetRect, from: .zero, operation: .copy, fraction: 1.0)
-        newImage.unlockFocus()
-        
-        if let tiffData = newImage.tiffRepresentation,
-           let bitmap = NSBitmapImageRep(data: tiffData) {
-            return bitmap.representation(using: .jpeg, properties: [.compressionFactor: 0.7])
-        }
-        
-        return nil
+        case id, timestamp, type, text, imageData, url, originalText, category, isSensitive, sourceApp
     }
 } 
