@@ -1,13 +1,20 @@
-# Clippy v1.3.0 Release Notes
+# Clippy v1.5.0 Release Notes
 
 ## New Features
 
+### VisionOS-Style Interface
+- **Modern Glass Effect UI** with dynamic blur and subtle shadows
+- **Enhanced Visual Effects** throughout the app with VisionOS-inspired design
+- **Improved Animations** with physics-based interactions and smooth transitions
+- **Beautiful Empty States** with contextual messages and animations
+- **Enhanced Confetti Effects** with improved physics and visual appeal
+
 ### Enhanced UI and User Experience
-- **Redesigned clipboard item cards** with improved visual hierarchy and interactivity
-- **Category-based filtering system** allows sorting clipboard items by type (text, code, URL, image)
-- **Animated UI transitions** for smoother user experience
-- **Custom category-specific empty states** with relevant icons and messages
-- **Improved search functionality** with real-time updates
+- **Redesigned Clipboard Items** with modern glass effect and improved interactivity
+- **Enhanced Category Filtering** with animated transitions and visual feedback
+- **Improved Search Experience** with real-time updates and optimized performance
+- **Auto-Update System** with version checking and update notifications
+- **Enhanced Visual Hierarchy** with improved spacing and layout
 
 ### Improved Window Management
 - **Better Settings window handling** with proper window controls
@@ -33,4 +40,4 @@
 ## Technical Improvements
 - Code organization with separate files for UI components
 - Better architecture with separated responsibilities
-- Improved notification handling for real-time updates 
+- Improved notification handling for real-time updates

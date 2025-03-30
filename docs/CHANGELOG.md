@@ -5,6 +5,27 @@ All notable changes to Clippy will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2024-09-20
+
+### Added
+- VisionOS-style visual effects and animations throughout the app
+- Enhanced confetti effects with improved physics and visual appeal
+- Modern glass effect with dynamic blur and subtle shadows
+- Improved category filtering with animated transitions
+- Auto-update system with version checking functionality
+
+### Changed
+- Completely redesigned UI with VisionOS-inspired aesthetics
+- Enhanced button styles with modern glass effects
+- Optimized clipboard item display with better performance
+- Improved visual hierarchy and spacing in all views
+- Enhanced search bar with real-time filtering
+
+### Fixed
+- Memory optimization for large clipboard histories
+- Performance improvements in image handling and display
+- Enhanced state management for better reliability
+
 ## [1.4.0] - 2024-08-17
 
 ### Added
@@ -75,4 +96,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Customizable keyboard shortcuts
 - Frosted glass UI with macOS Finder-like appearance
 - Fade animations for window appearance/disappearance
-- Export/import clipboard history 
+- Export/import clipboard history

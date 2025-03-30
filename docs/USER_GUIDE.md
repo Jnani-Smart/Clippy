@@ -1,6 +1,6 @@
 # Clippy User Guide
 
-Welcome to Clippy, a modern clipboard manager for macOS. This guide will help you make the most of Clippy's features.
+Welcome to Clippy, a modern clipboard manager for macOS featuring a beautiful VisionOS-inspired interface. This guide will help you make the most of Clippy's features.
 
 ## Getting Started
 
@@ -28,18 +28,21 @@ When you first launch Clippy, you'll need to:
 ### Item Options Menu
 
 - Right-click (or control-click) on any clipboard item to access the options menu
-- The options menu features a clean, text-only design for improved readability
+- The options menu features a modern glass effect design with smooth animations
 - Available options include:
   - Copy: Copy the item to clipboard without pasting
-  - Pin/Unpin: Toggle pinned status for the item
-  - Delete: Remove the item from history
+  - Pin/Unpin: Toggle pinned status for the item with visual feedback
+  - Delete: Remove the item with fade-out animation
   - Format-specific options (like "Open URL" for links or "Save Image" for images)
+  - Each action features subtle hover effects and transitions
 
 ### Search
 
 - When the Clippy window is open, start typing to search
-- Results will filter in real-time
-- Search works across all categories and types of clipboard items
+- Results filter in real-time with smooth animations
+- Enhanced search with category-aware filtering
+- Beautiful empty states with contextual messages
+- Search works across all categories with optimized performance
 
 ### Category Filtering
 
@@ -108,4 +111,4 @@ Clippy respects your privacy:
 
 - All clipboard data is stored locally on your computer
 - No data is sent to external servers
-- Sensitive clipboard items from password managers are automatically excluded 
+- Sensitive clipboard items from password managers are automatically excluded
