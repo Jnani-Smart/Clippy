@@ -1,0 +1,64 @@
+{
+  "source": "/Users/jnanismart/Documents/Clippy/Clippy/Views/ClipboardItemRow.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Copy",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 124
+        }
+      },
+      {
+        "comment": "",
+        "key": "Unpin",
+        "location": {
+          "startingColumn": 56,
+          "startingLine": 136
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pin",
+        "location": {
+          "startingColumn": 66,
+          "startingLine": 136
+        }
+      },
+      {
+        "comment": "",
+        "key": "Open URL",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 151
+        }
+      },
+      {
+        "comment": "",
+        "key": "Save Image",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 163
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 180
+        }
+      },
+      {
+        "comment": "",
+        "key": "Image",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 438
+        }
+      }
+    ]
+  },
+  "version": 1
+}

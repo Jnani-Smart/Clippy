@@ -1,7 +1,8 @@
 import SwiftUI
 import CoreGraphics
+import Combine
 
-// Re-add the VisualEffectView that was removed
+// Enhanced visual effect view with modern styling
 struct VisualEffectView: NSViewRepresentable {
     var material: NSVisualEffectView.Material
     var blendingMode: NSVisualEffectView.BlendingMode
@@ -13,9 +14,17 @@ struct VisualEffectView: NSViewRepresentable {
         view.blendingMode = blendingMode
         view.state = state
         
-        // Make it similar to Finder's translucent effect
+        // Enhanced glass effect with modern styling
         view.wantsLayer = true
-        view.layer?.cornerRadius = 0
+        view.layer?.cornerRadius = 28
+        view.layer?.masksToBounds = true
+        
+        // Add subtle inner shadow for depth
+        let innerShadow = NSShadow()
+        innerShadow.shadowColor = NSColor.black.withAlphaComponent(0.1)
+        innerShadow.shadowOffset = NSSize(width: 0, height: -1)
+        innerShadow.shadowBlurRadius = 3
+        view.shadow = innerShadow
         
         return view
     }
@@ -629,4 +638,4 @@ extension Date {
         formatter.unitsStyle = .abbreviated
         return formatter.localizedString(for: self, relativeTo: Date())
     }
-} 
+}

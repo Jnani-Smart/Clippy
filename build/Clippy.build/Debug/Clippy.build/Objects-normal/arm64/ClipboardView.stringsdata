@@ -1,0 +1,160 @@
+{
+  "source": "/Users/jnanismart/Documents/Clippy/Clippy/Views/ClipboardView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Clipboard History",
+        "location": {
+          "startingColumn": 29,
+          "startingLine": 190
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clipboard History",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 167
+        }
+      },
+      {
+        "comment": "",
+        "key": "No clipboard items",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 298
+        }
+      },
+      {
+        "comment": "",
+        "key": "Copy some text or images to see them here",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 301
+        }
+      },
+      {
+        "comment": "",
+        "key": "No %@ items",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 261
+        }
+      },
+      {
+        "comment": "",
+        "key": "Copy some text to see it here",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 266
+        }
+      },
+      {
+        "comment": "",
+        "key": "Copy code snippets to see them here",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 272
+        }
+      },
+      {
+        "comment": "",
+        "key": "Copy website links to see them here",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 278
+        }
+      },
+      {
+        "comment": "",
+        "key": "Copy images to see them here",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 284
+        }
+      },
+      {
+        "comment": "",
+        "key": "%@, copied %@",
+        "location": {
+          "startingColumn": 29,
+          "startingLine": 347
+        }
+      },
+      {
+        "comment": "",
+        "key": "Double tap to copy and paste this item",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 349
+        }
+      },
+      {
+        "comment": "",
+        "key": "Copy",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 355
+        }
+      },
+      {
+        "comment": "",
+        "key": "Unpin",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 367
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pin",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 374
+        }
+      },
+      {
+        "comment": "",
+        "key": "Delete",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 388
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld items",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 481
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clear",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 447
+        }
+      },
+      {
+        "comment": "",
+        "key": "No pinned items",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 542
+        }
+      },
+      {
+        "comment": "",
+        "key": "Pin items to keep them accessible",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 544
+        }
+      }
+    ]
+  },
+  "version": 1
+}

@@ -1,5 +1,12 @@
 import SwiftUI
 import ObjectiveC
+import Foundation
+import CoreGraphics
+import Combine
+
+// Import required modules for enhanced functionality
+@_exported import UniformTypeIdentifiers
+@_exported import AppKit
 
 // First, define a global constant outside the view struct
 private let defaultModifierValue: UInt = UInt(NSEvent.ModifierFlags.command.rawValue | NSEvent.ModifierFlags.shift.rawValue)
@@ -89,50 +96,14 @@ struct CloseButtonRepresentable: NSViewRepresentable {
         context.coordinator.normalColor = hoverNormalColor
         context.coordinator.hoverColor = hoverActiveColor
         
-        // Make the button handle mouse events
-        class CloseButtonMouseHandler: NSObject {
-            var normalColor: CGColor
-            var hoverColor: CGColor
-            
-            init(normalColor: CGColor, hoverColor: CGColor) {
-                self.normalColor = normalColor
-                self.hoverColor = hoverColor
-                super.init()
-            }
-            
-            @objc func mouseEntered(with event: NSEvent) {
-                if let button = event.trackingArea?.owner as? NSButton,
-                   let bgLayer = button.layer?.sublayers?.first {
-                    bgLayer.backgroundColor = hoverColor
-                }
-            }
-            
-            @objc func mouseExited(with event: NSEvent) {
-                if let button = event.trackingArea?.owner as? NSButton,
-                   let bgLayer = button.layer?.sublayers?.first {
-                    bgLayer.backgroundColor = normalColor
-                }
-            }
-        }
-        
-        // Create a mouse handler and attach it to the button
-        let mouseHandler = CloseButtonMouseHandler(normalColor: hoverNormalColor, hoverColor: hoverActiveColor)
-        
-        // Store the mouse handler to prevent it from being deallocated
-        objc_setAssociatedObject(
-            closeButton,
-            "mouseHandler",
-            mouseHandler,
-            .OBJC_ASSOCIATION_RETAIN_NONATOMIC
-        )
-        
-        // Add tracking area for hover effects
-        closeButton.addTrackingArea(NSTrackingArea(
+        // Set up tracking area directly on the coordinator
+        let trackingArea = NSTrackingArea(
             rect: closeButton.bounds,
             options: [.mouseEnteredAndExited, .activeInActiveApp],
-            owner: mouseHandler,
-            userInfo: nil)
+            owner: context.coordinator, // Use coordinator as owner
+            userInfo: nil
         )
+        closeButton.addTrackingArea(trackingArea)
         
         return closeButton
     }
@@ -173,20 +144,40 @@ struct CloseButtonRepresentable: NSViewRepresentable {
             onClose()
         }
         
-        // Handle mouse events for hover effect
+        // Mouse event handlers for hover effect
         @objc func mouseEntered(with event: NSEvent) {
-            guard let button = event.trackingArea?.owner as? NSButton else { return }
-            if let bgLayer = button.layer?.sublayers?.first {
-                bgLayer.backgroundColor = hoverColor
-            }
+            guard let button = self.button,
+                  let bgLayer = button.layer?.sublayers?.first else { return }
+            bgLayer.backgroundColor = hoverColor
         }
         
         @objc func mouseExited(with event: NSEvent) {
-            guard let button = event.trackingArea?.owner as? NSButton else { return }
-            if let bgLayer = button.layer?.sublayers?.first {
-                bgLayer.backgroundColor = normalColor
-            }
+            guard let button = self.button,
+                  let bgLayer = button.layer?.sublayers?.first else { return }
+            bgLayer.backgroundColor = normalColor
         }
+    }
+}
+
+// Add CustomButtonStyle definition before its first use
+struct CustomButtonStyle: ButtonStyle {
+    let color: Color
+    
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(
+                // Simplify to a single layer for better performance
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(color.opacity(configuration.isPressed ? 0.08 : 0.05))
+            )
+            .foregroundColor(color) 
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(color.opacity(0.2), lineWidth: 0.8)
+            )
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 
@@ -198,6 +189,123 @@ struct SettingsView: View {
     @AppStorage("storeImages") private var storeImages = true
     @AppStorage("detectSensitiveContent") private var detectSensitiveContent = false
     @AppStorage("skipSensitiveContent") private var skipSensitiveContent = false
+
+    // Version info
+    private let appVersion: String = {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+    }()
+    
+    @State private var isCheckingForUpdates = false
+    @State private var updateStatusMessage = ""
+    @State private var releaseURL: URL? = nil
+    
+    private func checkForUpdates() {
+        guard !isCheckingForUpdates else { return }
+        isCheckingForUpdates = true
+        
+        updateStatusMessage = "Checking for updates..."
+        
+        // Configure your GitHub repository information here
+        let owner = "jnanismart" // Replace with your GitHub username
+        let repo = "Clippy" // Replace with your repository name
+        
+        let url = URL(string: "https://api.github.com/repos/\(owner)/\(repo)/releases/latest")!
+        
+        // Create a version-specific URLRequest with appropriate headers
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+        request.setValue("Clippy-App/\(appVersion)", forHTTPHeaderField: "User-Agent")
+        
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async { [self] in
+                self.isCheckingForUpdates = false
+                
+                if let error = error {
+                    self.updateStatusMessage = "Error checking for updates: \(error.localizedDescription)"
+                    return
+                }
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    self.updateStatusMessage = "Error: Invalid response from server"
+                    return
+                }
+                
+                if httpResponse.statusCode == 404 {
+                    self.updateStatusMessage = "No releases found on GitHub"
+                    return
+                }
+                
+                if httpResponse.statusCode != 200 {
+                    self.updateStatusMessage = "Error: Server returned status code \(httpResponse.statusCode)"
+                    return
+                }
+                
+                guard let data = data else {
+                    self.updateStatusMessage = "Error: No data received"
+                    return
+                }
+                
+                do {
+                    let release = try JSONDecoder().decode(GitHubRelease.self, from: data)
+                    
+                    // Clean up version numbers for comparison
+                    let latestVersion = release.tagName.replacingOccurrences(of: "v", with: "")
+                    let currentVersion = self.appVersion
+                    
+                    // Simple version comparison (this can be enhanced for semantic versioning)
+                    if self.isNewerVersion(latestVersion, than: currentVersion) {
+                        let formatter = DateFormatter()
+                        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
+                        formatter.timeZone = TimeZone(abbreviation: "UTC")
+                        formatter.locale = Locale(identifier: "en_US_POSIX")
+                        
+                        var publishedDate = "recently"
+                        if let date = formatter.date(from: release.publishedAt) {
+                            let displayFormatter = DateFormatter()
+                            displayFormatter.dateStyle = .medium
+                            publishedDate = displayFormatter.string(from: date)
+                        }
+                        
+                        self.updateStatusMessage = "New version \(latestVersion) available (released \(publishedDate)).\nVisit GitHub to download."
+                        
+                        // Create a clickable link to the release
+                        self.releaseURL = URL(string: release.htmlUrl)
+                    } else {
+                        self.updateStatusMessage = "You're using the latest version (\(currentVersion))."
+                    }
+                } catch {
+                    self.updateStatusMessage = "Error parsing update information: \(error.localizedDescription)"
+                }
+            }
+        }
+        
+        task.resume()
+    }
+    
+    // Helper method to compare version strings
+    private func isNewerVersion(_ version1: String, than version2: String) -> Bool {
+        let components1 = version1.split(separator: ".").compactMap { Int($0) }
+        let components2 = version2.split(separator: ".").compactMap { Int($0) }
+        
+        // Pad shorter arrays with zeros
+        let maxLength = max(components1.count, components2.count)
+        let paddedComponents1 = components1 + Array(repeating: 0, count: maxLength - components1.count)
+        let paddedComponents2 = components2 + Array(repeating: 0, count: maxLength - components2.count)
+        
+        // Compare each component
+        for (v1, v2) in zip(paddedComponents1, paddedComponents2) {
+            if v1 > v2 {
+                return true
+            } else if v1 < v2 {
+                return false
+            }
+        }
+        
+        // Versions are identical
+        return false
+    }
+    
     @AppStorage("enableCategories") private var enableCategories = false
     @AppStorage("hideMenuBarIcon") private var hideMenuBarIcon = false
     @AppStorage("hideDockIcon") private var hideDockIcon = false
@@ -212,8 +320,18 @@ struct SettingsView: View {
     @State private var isClearHistoryInProgress = false
     @State private var isExporting = false
     @State private var isImporting = false
+    @State private var isResettingDefaults = false
     @EnvironmentObject private var clipboardManager: ClipboardManager
     @State private var keyEventMonitor: Any?
+    @State private var showConfetti = false
+    @State private var showThankYou = false
+    @State private var excludedApps: [String] = []
+    @AppStorage("encryptStorage") private var encryptStorage = false
+    
+    // Check if this is the first launch
+    private var isFirstLaunch: Bool {
+        !UserDefaults.standard.bool(forKey: "hasLaunchedBefore")
+    }
     
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -221,11 +339,12 @@ struct SettingsView: View {
                 // Custom title bar with visionOS styling - add padding at top for close button
                 ZStack(alignment: .center) {
                     Text("Settings")
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(.system(size: 20, weight: .semibold))
                         .foregroundColor(.primary)
+                        .padding(.bottom, 2)
                 }
-                .frame(height: 50)
-                .padding(.top, 5) // Add padding for close button
+                .frame(height: 55)
+                .padding(.top, 8) // Increased padding for better spacing
                 .background(Color.clear)
                 .background(DraggableView())
                 
@@ -260,10 +379,16 @@ struct SettingsView: View {
                             Label("Data Management", systemImage: "folder")
                         }
                         .tag(4)
+                    
+                    aboutView
+                        .tabItem {
+                            Label("About", systemImage: "info.circle")
+                        }
+                        .tag(5)
                 }
                 .padding(.top, 5)
             }
-            .frame(width: 500, height: 430)
+            .frame(width: 520, height: 460)
             
             // Add close button in the top-left corner
             CloseButtonRepresentable(onClose: {
@@ -272,26 +397,6 @@ struct SettingsView: View {
             .frame(width: 24, height: 24)
             .offset(x: 10, y: 10)
         }
-        // Use hudWindow material like the floating window instead of sidebar
-        .background(
-            ZStack {
-                // Premium glass effect background with enhanced contrast for foreground
-                SettingsVisualEffectView(material: .titlebar, blendingMode: .behindWindow)
-                
-                // Slightly darker overlay for better foreground visibility
-                Color.black.opacity(0.14)
-                
-                // Subtle gradient for dimension
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color.black.opacity(0.05),
-                        Color.black.opacity(0.02)
-                    ]),
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            }
-        )
         .onAppear {
             // Configure the window to behave as a normal window, not floating
             if let window = NSApplication.shared.windows.first(where: { $0.title == "Settings" || $0.title.isEmpty }) {
@@ -308,6 +413,24 @@ struct SettingsView: View {
                 
                 // Set window title for proper identification
                 window.title = "Settings"
+            }
+            
+            // Load excluded apps
+            loadExcludedApps()
+            
+            // Check if this is the first launch of the app
+            if isFirstLaunch {
+                // Select the About tab
+                selectedTab = 5
+                
+                // Delay to ensure view is fully loaded
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    showThankYou = true
+                    showConfetti = true
+                    
+                    // Mark as launched
+                    UserDefaults.standard.set(true, forKey: "hasLaunchedBefore")
+                }
             }
             
             // Add a local event monitor to capture the Escape key
@@ -463,8 +586,14 @@ struct SettingsView: View {
                     }
                 }
                 
-                // Quit button
-                VisionOSButton(title: "Quit Clippy", role: .destructive, isInProgress: $isQuitInProgress) {
+                // Quit button with icon
+                VisionOSButton(
+                    title: "Quit Clippy",
+                    role: .destructive,
+                    icon: "power",
+                    customColor: Color(red: 0.95, green: 0.26, blue: 0.37), // Ruby red
+                    isInProgress: $isQuitInProgress
+                ) {
                     guard !isQuitInProgress else { return }
                     isQuitInProgress = true
                     
@@ -484,7 +613,8 @@ struct SettingsView: View {
                 }
                 .padding(.top, 5)
             }
-            .padding(20)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 20)
         }
     }
     
@@ -492,31 +622,87 @@ struct SettingsView: View {
     private var privacySettingsView: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                PrivacySection()
+                // Privacy settings
+                VisionOSGroupBox(title: "Privacy") {
+                    VStack(alignment: .leading, spacing: 16) {
+                        VisionOSToggle(
+                            title: "Detect sensitive content", 
+                            description: "Identifies passwords, credit card numbers, and other personal information.",
+                            isOn: $detectSensitiveContent
+                        )
+                        
+                        if detectSensitiveContent {
+                            VisionOSToggle(
+                                title: "Don't store sensitive content", 
+                                description: "Prevents storing detected sensitive information in clipboard history.",
+                                isOn: $skipSensitiveContent
+                            )
+                            .padding(.leading, 16)
+                        }
+                        
+                        VisionOSToggle(
+                            title: "Encrypt clipboard storage",
+                            description: "All stored clipboard data will be encrypted on your device",
+                            isOn: $encryptStorage
+                        )
+                    }
+                }
                 
-                VisionOSButton(title: "Clear All History", role: .destructive, isInProgress: $isClearHistoryInProgress) {
-                    guard !isClearHistoryInProgress else { return }
-                    isClearHistoryInProgress = true
-                    
-                    print("Attempting to clear clipboard history...")
-                    
-                    // Use the clipboardManager directly instead of going through the app delegate
-                    clipboardManager.clearHistory()
-                    print("Successfully cleared history")
-                    
-                    // Post notification that history was cleared
-                    NotificationCenter.default.post(
-                        name: Notification.Name("HistoryCleared"),
-                        object: nil
-                    )
-                    
-                    // Reset the flag after a short delay
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        isClearHistoryInProgress = false
+                // App Exclusions
+                VisionOSGroupBox(title: "App Exclusions") {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Clippy won't monitor clipboard changes from these apps:")
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                            .padding(.bottom, 8)
+                        
+                        HStack {
+                            Button(action: {
+                                addExcludedApp()
+                            }) {
+                                Label("Add App", systemImage: "plus")
+                            }
+                            
+                            Spacer()
+                            
+                            Button(action: {
+                                excludedApps = []
+                                saveExcludedApps()
+                            }) {
+                                Text("Clear All")
+                            }
+                            .disabled(excludedApps.isEmpty)
+                        }
+                        
+                        if !excludedApps.isEmpty {
+                            ScrollView(.vertical, showsIndicators: true) {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    ForEach(excludedApps, id: \.self) { appId in
+                                        HStack {
+                                            Text(appNameForBundleId(appId))
+                                                .font(.system(size: 14))
+                                            
+                                            Spacer()
+                                            
+                                            Button(action: {
+                                                removeExcludedApp(appId)
+                                            }) {
+                                                Image(systemName: "xmark.circle.fill")
+                                                    .foregroundColor(.gray)
+                                            }
+                                            .buttonStyle(BorderlessButtonStyle())
+                                        }
+                                        .padding(.vertical, 4)
+                                    }
+                                }
+                            }
+                            .frame(height: min(CGFloat(excludedApps.count) * 30, 150))
+                        }
                     }
                 }
             }
-            .padding(20)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 20)
         }
     }
     
@@ -536,9 +722,9 @@ struct SettingsView: View {
                         
                         Text("Default Categories")
                             .font(.system(size: 15, weight: .semibold))
-                            .padding(.top, 4)
+                            .padding(.top, 8)
                         
-                        LazyVGrid(columns: [GridItem(.flexible())], spacing: 12) {
+                        LazyVGrid(columns: [GridItem(.flexible())], spacing: 16) {
                             VisionOSCategoryRow(name: "Code", icon: "chevron.left.forwardslash.chevron.right", color: .blue)
                             VisionOSCategoryRow(name: "URLs", icon: "link", color: .green)
                             VisionOSCategoryRow(name: "Images", icon: "photo", color: .orange)
@@ -547,7 +733,8 @@ struct SettingsView: View {
                     }
                 }
             }
-            .padding(20)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 20)
         }
     }
     
@@ -582,12 +769,13 @@ struct SettingsView: View {
                         Divider().padding(.vertical, 4)
                         
                         Text("Changes will take effect after restarting the app.")
-                            .font(.system(size: 12))
+                            .font(.system(size: 14))
                             .foregroundColor(.secondary)
                     }
                 }
             }
-            .padding(20)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 20)
         }
     }
     
@@ -598,12 +786,12 @@ struct SettingsView: View {
                 VisionOSGroupBox(title: "Clipboard Data") {
                     VStack(alignment: .leading, spacing: 16) {
                         Text("Export your clipboard history to a file or import from a previously exported file.")
-                            .font(.system(size: 12))
+                            .font(.system(size: 14))
                             .foregroundColor(.secondary)
-                            .padding(.bottom, 8)
+                            .padding(.bottom, 16)
                         
-                        HStack(spacing: 12) {
-                            VisionOSButton(title: "Export Clipboard History", role: nil, isInProgress: $isExporting) {
+                        HStack(spacing: 16) {
+                            Button(action: {
                                 guard !isExporting else { return }
                                 isExporting = true
                                 exportHistory()
@@ -611,10 +799,25 @@ struct SettingsView: View {
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                                     isExporting = false
                                 }
+                            }) {
+                                HStack {
+                                    if isExporting {
+                                        ProgressView()
+                                            .controlSize(.small)
+                                    } else {
+                                        Image(systemName: "square.and.arrow.up")
+                                            .font(.system(size: 13))
+                                    }
+                                    Text("Export History")
+                                        .font(.system(size: 14))
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
                             }
-                            .frame(maxWidth: .infinity)
+                            .buttonStyle(EnhancedButtonStyle(isInProgress: isExporting, customColor: Color(red: 0.35, green: 0.78, blue: 0.42)))
+                            .disabled(isExporting)
                             
-                            VisionOSButton(title: "Import Clipboard History", role: nil, isInProgress: $isImporting) {
+                            Button(action: {
                                 guard !isImporting else { return }
                                 isImporting = true
                                 importHistory()
@@ -622,13 +825,219 @@ struct SettingsView: View {
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                                     isImporting = false
                                 }
+                            }) {
+                                HStack {
+                                    if isImporting {
+                                        ProgressView()
+                                            .controlSize(.small)
+                                    } else {
+                                        Image(systemName: "square.and.arrow.down")
+                                            .font(.system(size: 13))
+                                    }
+                                    Text("Import History")
+                                        .font(.system(size: 14))
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
                             }
-                            .frame(maxWidth: .infinity)
+                            .buttonStyle(EnhancedButtonStyle(isInProgress: isImporting, customColor: Color(red: 0.6, green: 0.45, blue: 0.86)))
+                            .disabled(isImporting)
+                        }
+                    }
+                }
+                
+                // Reset and Data Management section with a more descriptive title and purpose
+                VisionOSGroupBox(title: "System Maintenance") {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Reset all settings to their default values or clear your clipboard history. Use these options to troubleshoot issues or start fresh.")
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                            .padding(.bottom, 16)
+                        
+                        VisionOSButton(
+                            title: "Reset to Defaults",
+                            role: .destructive,
+                            icon: "arrow.counterclockwise",
+                            customColor: Color(red: 0.98, green: 0.26, blue: 0.37), // Ruby red
+                            isInProgress: $isResettingDefaults,
+                            action: resetToDefaults
+                        )
+                        
+                        // Clear history button
+                        VisionOSButton(
+                            title: "Clear All History",
+                            role: .destructive, 
+                            icon: "trash",
+                            customColor: Color(red: 0.9, green: 0.47, blue: 0.25), // Rust/Swift orange
+                            isInProgress: $isClearHistoryInProgress
+                        ) {
+                            guard !isClearHistoryInProgress else { return }
+                            isClearHistoryInProgress = true
+                            
+                            print("Attempting to clear clipboard history...")
+                            
+                            // Use the clipboardManager directly instead of going through the app delegate
+                            clipboardManager.clearHistory()
+                            print("Successfully cleared history")
+                            
+                            // Post notification that history was cleared
+                            NotificationCenter.default.post(
+                                name: Notification.Name("HistoryCleared"),
+                                object: nil
+                            )
+                            
+                            // Reset the flag after a short delay
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                isClearHistoryInProgress = false
+                            }
                         }
                     }
                 }
             }
-            .padding(20)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 20)
+        }
+    }
+    
+    private var aboutView: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                // App info
+                VisionOSGroupBox(title: "About Clippy") {
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack {
+                            Image(nsImage: NSImage(named: "AppIcon") ?? NSImage())
+                                .resizable()
+                                .frame(width: 64, height: 64)
+                                .cornerRadius(12)
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Clippy")
+                                    .font(.system(size: 20, weight: .bold))
+                                Text("Version \(appVersion)")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.leading, 16)
+                        }
+                        
+                        Divider().padding(.vertical, 8)
+                        
+                        Text("A modern clipboard manager for macOS")
+                            .font(.system(size: 14))
+                        
+                        Text("© 2025 Jnani Smart")
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary)
+                            .padding(.top, 8)
+                    }
+                }
+                
+                // Update check
+                VisionOSGroupBox(title: "Updates") {
+                    VStack(alignment: .leading, spacing: 16) {
+                        VisionOSButton(
+                            title: "Check for Updates",
+                            icon: "arrow.triangle.2.circlepath",
+                            customColor: Color(red: 0.35, green: 0.68, blue: 0.99), // JavaScript blue
+                            isInProgress: $isCheckingForUpdates,
+                            action: checkForUpdates
+                        )
+                        .frame(width: 180)
+                        
+                        if !updateStatusMessage.isEmpty {
+                            Text(updateStatusMessage)
+                                .font(.system(size: 14))
+                                .foregroundColor(.secondary)
+                                .padding(.top, 8)
+                                .multilineTextAlignment(.leading)
+                        }
+                        
+                        if releaseURL != nil {
+                            Button("Open Download Page") {
+                                if let url = releaseURL {
+                                    NSWorkspace.shared.open(url)
+                                }
+                            }
+                            .buttonStyle(EnhancedButtonStyle(customColor: Color(red: 0.35, green: 0.68, blue: 0.99)))
+                            .padding(.top, 8)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 20)
+            .overlay(
+                ZStack {
+                    // iMessage-style confetti animation with perfect timing
+                    EnhancedConfettiView(isActive: $showConfetti, duration: 3.5, intensity: 120, burstDuration: 0.3)
+                    
+                    // Enhanced thank you message overlay with improved animations
+                    if showThankYou {
+                        EnhancedThankYouView(isShowing: $showThankYou)
+                    }
+                }
+            )
+            .onAppear {
+                // Check if this is the first launch
+                if FirstLaunchManager.shared.isFirstLaunch {
+                    // Delay to ensure view is fully loaded
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        showThankYou = true
+                        showConfetti = true
+                        
+                        // Mark as launched
+                        FirstLaunchManager.shared.markAsLaunched()
+                    }
+                }
+            }
+        }
+    }
+    
+    // Reset to defaults function with optimizations
+    private func resetToDefaults() {
+        // Create a batch of keys to reset for better performance
+        let keysToReset = [
+            "startAtLogin", "maxHistoryItems", "autoPaste", "storeImages",
+            "detectSensitiveContent", "skipSensitiveContent", "enableCategories",
+            "hideMenuBarIcon", "hideDockIcon", "enableAutoDelete",
+            "autoDeleteDuration", "clipboardShortcutKey", "clipboardShortcutModifiers"
+        ]
+        
+        // Batch remove all keys at once
+        for key in keysToReset {
+            UserDefaults.standard.removeObject(forKey: key)
+        }
+        
+        // Reset first launch flag to trigger animation on next launch
+        UserDefaults.standard.removeObject(forKey: "hasLaunchedBefore")
+        
+        // Sync UserDefaults to ensure changes are saved
+        UserDefaults.standard.synchronize()
+        
+        // Post notification to update UI elements that depend on these settings
+        NotificationCenter.default.post(
+            name: Notification.Name("SettingsReset"),
+            object: nil
+        )
+        
+        // Close settings window
+        isPresented = false
+        
+        // Restart the app after a short delay using a more efficient approach
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            let bundleURL = Bundle.main.bundleURL
+            let task = Process()
+            task.launchPath = "/usr/bin/open"
+            task.arguments = [bundleURL.path]
+            
+            do {
+                try task.run()
+                // Quit the current instance once new instance is launching
+                NSApp.terminate(nil)
+            } catch {
+                print("Failed to restart: \(error.localizedDescription)")
+            }
         }
     }
     
@@ -737,6 +1146,99 @@ struct SettingsView: View {
             }
         }
     }
+    
+    private func addExcludedApp() {
+        let openPanel = NSOpenPanel()
+        openPanel.canChooseFiles = true
+        openPanel.canChooseDirectories = false
+        openPanel.allowsMultipleSelection = false
+        openPanel.allowedFileTypes = ["app"]
+        openPanel.directoryURL = URL(fileURLWithPath: "/Applications")
+        openPanel.message = "Select an application to exclude from clipboard monitoring"
+        openPanel.prompt = "Exclude"
+        
+        if openPanel.runModal() == .OK, let appUrl = openPanel.url {
+            // Try to get the bundle ID using Bundle
+            if let bundle = Bundle(url: appUrl) {
+                // Make sure we can get a valid bundle ID
+                if let bundleId = bundle.bundleIdentifier, !bundleId.isEmpty {
+                    if !excludedApps.contains(bundleId) {
+                        excludedApps.append(bundleId)
+                        saveExcludedApps()
+                        
+                        // Force notification of change
+                        NotificationCenter.default.post(
+                            name: NSNotification.Name("ExcludedAppsChanged"),
+                            object: nil,
+                            userInfo: ["excludedApps": excludedApps]
+                        )
+                    }
+                    return
+                }
+            }
+            
+            // Fallback method if Bundle fails
+            let runningApps = NSWorkspace.shared.runningApplications
+            for app in runningApps {
+                if app.bundleURL == appUrl, let bundleId = app.bundleIdentifier, !bundleId.isEmpty {
+                    if !excludedApps.contains(bundleId) {
+                        excludedApps.append(bundleId)
+                        saveExcludedApps()
+                        
+                        // Force notification of change
+                        NotificationCenter.default.post(
+                            name: NSNotification.Name("ExcludedAppsChanged"),
+                            object: nil,
+                            userInfo: ["excludedApps": excludedApps]
+                        )
+                    }
+                    return
+                }
+            }
+            
+            // Alert user if we couldn't get the bundle ID
+            let alert = NSAlert()
+            alert.messageText = "Could not determine bundle identifier"
+            alert.informativeText = "The app couldn't be excluded because its bundle identifier could not be determined."
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+        }
+    }
+    
+    private func removeExcludedApp(_ appId: String) {
+        if let index = excludedApps.firstIndex(of: appId) {
+            excludedApps.remove(at: index)
+            saveExcludedApps()
+            
+            // Force notification of change
+            NotificationCenter.default.post(
+                name: NSNotification.Name("ExcludedAppsChanged"),
+                object: nil,
+                userInfo: ["excludedApps": excludedApps]
+            )
+        }
+    }
+    
+    private func saveExcludedApps() {
+        UserDefaults.standard.set(excludedApps, forKey: "excludedApps")
+        UserDefaults.standard.synchronize() // Force immediate save
+    }
+    
+    private func loadExcludedApps() {
+        excludedApps = UserDefaults.standard.stringArray(forKey: "excludedApps") ?? []
+    }
+    
+    private func appNameForBundleId(_ bundleId: String) -> String {
+        // Try to get the app name from the bundle ID
+        let workspace = NSWorkspace.shared
+        if let appUrl = workspace.urlForApplication(withBundleIdentifier: bundleId),
+           let bundle = Bundle(url: appUrl),
+           let appName = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String {
+            return appName
+        }
+        return bundleId
+    }
 }
 
 // VisionOS-inspired components
@@ -745,6 +1247,7 @@ struct SettingsView: View {
 struct VisionOSGroupBox<Content: View>: View {
     let title: String
     let content: Content
+    @State private var isHovered = false
     
     init(title: String, @ViewBuilder content: () -> Content) {
         self.title = title
@@ -763,12 +1266,33 @@ struct VisionOSGroupBox<Content: View>: View {
             .padding(16)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.primary.opacity(0.05))
+                    .fill(Color.primary.opacity(isHovered ? 0.06 : 0.04))
+                    .animation(.easeOut(duration: 0.2), value: isHovered)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
+                    .strokeBorder(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color.primary.opacity(isHovered ? 0.15 : 0.1),
+                                Color.primary.opacity(isHovered ? 0.08 : 0.06)
+                            ]),
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        lineWidth: 1
+                    )
             )
+            .shadow(
+                color: Color.primary.opacity(isHovered ? 0.06 : 0.03),
+                radius: isHovered ? 3 : 1,
+                x: 0,
+                y: isHovered ? 1 : 0
+            )
+            .onHover { hovering in
+                self.isHovered = hovering
+            }
+            .animation(.easeOut(duration: 0.2), value: isHovered)
         }
     }
 }
@@ -837,26 +1361,103 @@ struct VisionOSButton: View {
     var role: ButtonRole? = nil
     let action: () -> Void
     @Binding var isInProgress: Bool
+    var icon: String? = nil
+    var customColor: Color? = nil
     
-    init(title: String, role: ButtonRole? = nil, isInProgress: Binding<Bool>? = nil, action: @escaping () -> Void) {
+    init(title: String, role: ButtonRole? = nil, icon: String? = nil, customColor: Color? = nil, isInProgress: Binding<Bool>? = nil, action: @escaping () -> Void) {
         self.title = title
         self.role = role
-        self.action = action
+        self.icon = icon
+        self.customColor = customColor
         self._isInProgress = isInProgress ?? .constant(false)
+        self.action = action
     }
     
     var body: some View {
         Button(action: action) {
-            Text(title)
-                .font(.system(size: 14, weight: .medium))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-                .opacity(isInProgress ? 0.7 : 1.0)
+            HStack {
+                if isInProgress {
+                    ProgressView()
+                        .controlSize(.small)
+                } else if let iconName = icon {
+                    Image(systemName: iconName)
+                        .font(.system(size: 13))
+                }
+                
+                Text(title)
+                    .font(.system(size: 14, weight: .medium))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .opacity(isInProgress ? 0.7 : 1.0)
         }
-        .buttonStyle(.bordered)
-        .controlSize(.regular)
-        .tint(role == .destructive ? .red : .accentColor)
+        .buttonStyle(EnhancedButtonStyle(role: role, isInProgress: isInProgress, customColor: customColor))
         .disabled(isInProgress)
+    }
+}
+
+// Enhanced button style for better visual appeal
+struct EnhancedButtonStyle: ButtonStyle {
+    let role: ButtonRole?
+    let isInProgress: Bool
+    var customColor: Color? = nil
+    @State private var isHovered = false
+    
+    init(role: ButtonRole? = nil, isInProgress: Bool = false, customColor: Color? = nil) {
+        self.role = role
+        self.isInProgress = isInProgress
+        self.customColor = customColor
+    }
+    
+    private var baseColor: Color {
+        if let custom = customColor {
+            return custom
+        }
+        
+        // Code-inspired vibrant colors
+        if role == .destructive {
+            return Color(red: 0.98, green: 0.26, blue: 0.37)  // Ruby/Error red
+        } else if role == .cancel {
+            return Color(red: 0.65, green: 0.65, blue: 0.68)  // Comment gray
+        } else {
+            return Color(red: 0.35, green: 0.68, blue: 0.99)  // JavaScript blue
+        }
+    }
+    
+    private var textColor: Color {
+        if role == .destructive || role == .cancel {
+            return baseColor
+        } else {
+            // Darker foreground for better contrast
+            return baseColor
+        }
+    }
+    
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(baseColor.opacity(configuration.isPressed ? 0.12 : (isHovered ? 0.10 : 0.08)))
+            )
+            .foregroundColor(textColor.opacity(isHovered ? 1.0 : 0.95))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(baseColor.opacity(isHovered ? 0.3 : 0.25), lineWidth: 0.8)
+            )
+            .shadow(
+                color: baseColor.opacity(isHovered ? 0.08 : 0.06),
+                radius: isHovered ? 1.2 : 1,
+                x: 0,
+                y: isHovered ? 1.2 : 1
+            )
+            .opacity(isInProgress ? 0.85 : 1.0)
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .animation(.easeOut(duration: 0.2), value: isHovered)
+            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+            .onHover { hovering in
+                isHovered = hovering
+            }
     }
 }
 
@@ -969,6 +1570,68 @@ struct DraggableView: NSViewRepresentable {
 struct PrivacySection: View {
     @AppStorage("detectSensitiveContent") private var detectSensitiveContent = true
     @AppStorage("skipSensitiveContent") private var skipSensitiveContent = false
+    
+    // Version info
+    private let appVersion: String = {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+    }()
+    
+    @State private var isCheckingForUpdates = false
+    @State private var updateStatusMessage = ""
+    
+    private func checkForUpdates() {
+        isCheckingForUpdates = true
+        updateStatusMessage = "Checking for updates..."
+        
+        // Simulate update check
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            isCheckingForUpdates = false
+            updateStatusMessage = "You're using the latest version"
+        }
+    }
+    
+    private var aboutSection: some View {
+        VStack(spacing: 12) {
+            Text("Made with ❤️")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(.secondary)
+            
+            Text("Version: \(appVersion)")
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+            
+            Text("By Jnani Smart")
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+            
+            Button(action: checkForUpdates) {
+                HStack {
+                    if isCheckingForUpdates {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 12))
+                    }
+                    Text("Check for Updates")
+                        .font(.system(size: 12))
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Color.secondary.opacity(0.1))
+                .cornerRadius(6)
+            }
+            .buttonStyle(PlainButtonStyle())
+            .disabled(isCheckingForUpdates)
+            
+            if !updateStatusMessage.isEmpty {
+                Text(updateStatusMessage)
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.vertical, 16)
+    }
     @AppStorage("encryptStorage") private var encryptStorage = false
     @State private var excludedApps: [String] = []
     @EnvironmentObject var clipboardManager: ClipboardManager
@@ -1153,5 +1816,20 @@ struct PrivacySection: View {
             return appName
         }
         return bundleId
+    }
+}
+
+// Structure to decode GitHub release response
+private struct GitHubRelease: Decodable {
+    let tagName: String
+    let htmlUrl: String
+    let body: String
+    let publishedAt: String
+    
+    enum CodingKeys: String, CodingKey {
+        case tagName = "tag_name"
+        case htmlUrl = "html_url"
+        case body
+        case publishedAt = "published_at"
     }
 }

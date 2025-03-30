@@ -1,0 +1,168 @@
+{
+  "" : {
+    "diagnostics" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/Clippy-master.dia",
+    "emit-module-dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/Clippy-master-emit-module.d",
+    "emit-module-diagnostics" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/Clippy-master-emit-module.dia",
+    "swift-dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/Clippy-master.swiftdeps"
+  },
+  "/Users/jnanismart/Documents/Clippy/Clippy/ClipboardManagerApp.swift" : {
+    "const-values" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardManagerApp.swiftconstvalues",
+    "dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardManagerApp.d",
+    "diagnostics" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardManagerApp.dia",
+    "index-unit-output-path" : "/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardManagerApp.o",
+    "llvm-bc" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardManagerApp.bc",
+    "object" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardManagerApp.o",
+    "swift-dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardManagerApp.swiftdeps",
+    "swiftmodule" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardManagerApp~partial.swiftmodule"
+  },
+  "/Users/jnanismart/Documents/Clippy/Clippy/Controllers/ClipboardManager.swift" : {
+    "const-values" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardManager.swiftconstvalues",
+    "dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardManager.d",
+    "diagnostics" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardManager.dia",
+    "index-unit-output-path" : "/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardManager.o",
+    "llvm-bc" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardManager.bc",
+    "object" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardManager.o",
+    "swift-dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardManager.swiftdeps",
+    "swiftmodule" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardManager~partial.swiftmodule"
+  },
+  "/Users/jnanismart/Documents/Clippy/Clippy/Controllers/ShortcutManager.swift" : {
+    "const-values" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ShortcutManager.swiftconstvalues",
+    "dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ShortcutManager.d",
+    "diagnostics" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ShortcutManager.dia",
+    "index-unit-output-path" : "/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ShortcutManager.o",
+    "llvm-bc" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ShortcutManager.bc",
+    "object" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ShortcutManager.o",
+    "swift-dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ShortcutManager.swiftdeps",
+    "swiftmodule" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ShortcutManager~partial.swiftmodule"
+  },
+  "/Users/jnanismart/Documents/Clippy/Clippy/Utilities/AppDelegate+Services.swift" : {
+    "const-values" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/AppDelegate+Services.swiftconstvalues",
+    "dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/AppDelegate+Services.d",
+    "diagnostics" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/AppDelegate+Services.dia",
+    "index-unit-output-path" : "/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/AppDelegate+Services.o",
+    "llvm-bc" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/AppDelegate+Services.bc",
+    "object" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/AppDelegate+Services.o",
+    "swift-dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/AppDelegate+Services.swiftdeps",
+    "swiftmodule" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/AppDelegate+Services~partial.swiftmodule"
+  },
+  "/Users/jnanismart/Documents/Clippy/Clippy/Utilities/ClipboardItem+Extensions.swift" : {
+    "const-values" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardItem+Extensions.swiftconstvalues",
+    "dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardItem+Extensions.d",
+    "diagnostics" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardItem+Extensions.dia",
+    "index-unit-output-path" : "/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardItem+Extensions.o",
+    "llvm-bc" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardItem+Extensions.bc",
+    "object" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardItem+Extensions.o",
+    "swift-dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardItem+Extensions.swiftdeps",
+    "swiftmodule" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardItem+Extensions~partial.swiftmodule"
+  },
+  "/Users/jnanismart/Documents/Clippy/Clippy/Utilities/FirstLaunchManager.swift" : {
+    "const-values" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/FirstLaunchManager.swiftconstvalues",
+    "dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/FirstLaunchManager.d",
+    "diagnostics" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/FirstLaunchManager.dia",
+    "index-unit-output-path" : "/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/FirstLaunchManager.o",
+    "llvm-bc" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/FirstLaunchManager.bc",
+    "object" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/FirstLaunchManager.o",
+    "swift-dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/FirstLaunchManager.swiftdeps",
+    "swiftmodule" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/FirstLaunchManager~partial.swiftmodule"
+  },
+  "/Users/jnanismart/Documents/Clippy/Clippy/Utilities/ShortcutRecorder.swift" : {
+    "const-values" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ShortcutRecorder.swiftconstvalues",
+    "dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ShortcutRecorder.d",
+    "diagnostics" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ShortcutRecorder.dia",
+    "index-unit-output-path" : "/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ShortcutRecorder.o",
+    "llvm-bc" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ShortcutRecorder.bc",
+    "object" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ShortcutRecorder.o",
+    "swift-dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ShortcutRecorder.swiftdeps",
+    "swiftmodule" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ShortcutRecorder~partial.swiftmodule"
+  },
+  "/Users/jnanismart/Documents/Clippy/Clippy/Views/ClipboardItemRow.swift" : {
+    "const-values" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardItemRow.swiftconstvalues",
+    "dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardItemRow.d",
+    "diagnostics" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardItemRow.dia",
+    "index-unit-output-path" : "/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardItemRow.o",
+    "llvm-bc" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardItemRow.bc",
+    "object" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardItemRow.o",
+    "swift-dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardItemRow.swiftdeps",
+    "swiftmodule" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardItemRow~partial.swiftmodule"
+  },
+  "/Users/jnanismart/Documents/Clippy/Clippy/Views/ClipboardView.swift" : {
+    "const-values" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardView.swiftconstvalues",
+    "dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardView.d",
+    "diagnostics" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardView.dia",
+    "index-unit-output-path" : "/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardView.o",
+    "llvm-bc" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardView.bc",
+    "object" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardView.o",
+    "swift-dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardView.swiftdeps",
+    "swiftmodule" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ClipboardView~partial.swiftmodule"
+  },
+  "/Users/jnanismart/Documents/Clippy/Clippy/Views/ConfettiView.swift" : {
+    "const-values" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ConfettiView.swiftconstvalues",
+    "dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ConfettiView.d",
+    "diagnostics" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ConfettiView.dia",
+    "index-unit-output-path" : "/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ConfettiView.o",
+    "llvm-bc" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ConfettiView.bc",
+    "object" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ConfettiView.o",
+    "swift-dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ConfettiView.swiftdeps",
+    "swiftmodule" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ConfettiView~partial.swiftmodule"
+  },
+  "/Users/jnanismart/Documents/Clippy/Clippy/Views/ContentView.swift" : {
+    "const-values" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ContentView.swiftconstvalues",
+    "dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ContentView.d",
+    "diagnostics" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ContentView.dia",
+    "index-unit-output-path" : "/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ContentView.o",
+    "llvm-bc" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ContentView.bc",
+    "object" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ContentView.o",
+    "swift-dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ContentView.swiftdeps",
+    "swiftmodule" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/ContentView~partial.swiftmodule"
+  },
+  "/Users/jnanismart/Documents/Clippy/Clippy/Views/EnhancedConfettiView.swift" : {
+    "const-values" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/EnhancedConfettiView.swiftconstvalues",
+    "dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/EnhancedConfettiView.d",
+    "diagnostics" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/EnhancedConfettiView.dia",
+    "index-unit-output-path" : "/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/EnhancedConfettiView.o",
+    "llvm-bc" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/EnhancedConfettiView.bc",
+    "object" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/EnhancedConfettiView.o",
+    "swift-dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/EnhancedConfettiView.swiftdeps",
+    "swiftmodule" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/EnhancedConfettiView~partial.swiftmodule"
+  },
+  "/Users/jnanismart/Documents/Clippy/Clippy/Views/SearchBar.swift" : {
+    "const-values" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/SearchBar.swiftconstvalues",
+    "dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/SearchBar.d",
+    "diagnostics" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/SearchBar.dia",
+    "index-unit-output-path" : "/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/SearchBar.o",
+    "llvm-bc" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/SearchBar.bc",
+    "object" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/SearchBar.o",
+    "swift-dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/SearchBar.swiftdeps",
+    "swiftmodule" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/SearchBar~partial.swiftmodule"
+  },
+  "/Users/jnanismart/Documents/Clippy/Clippy/Views/SettingsView.swift" : {
+    "const-values" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/SettingsView.swiftconstvalues",
+    "dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/SettingsView.d",
+    "diagnostics" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/SettingsView.dia",
+    "index-unit-output-path" : "/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/SettingsView.o",
+    "llvm-bc" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/SettingsView.bc",
+    "object" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/SettingsView.o",
+    "swift-dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/SettingsView.swiftdeps",
+    "swiftmodule" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/SettingsView~partial.swiftmodule"
+  },
+  "/Users/jnanismart/Documents/Clippy/Clippy/Views/VisionOSButtonStyle.swift" : {
+    "const-values" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/VisionOSButtonStyle.swiftconstvalues",
+    "dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/VisionOSButtonStyle.d",
+    "diagnostics" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/VisionOSButtonStyle.dia",
+    "index-unit-output-path" : "/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/VisionOSButtonStyle.o",
+    "llvm-bc" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/VisionOSButtonStyle.bc",
+    "object" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/VisionOSButtonStyle.o",
+    "swift-dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/VisionOSButtonStyle.swiftdeps",
+    "swiftmodule" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/VisionOSButtonStyle~partial.swiftmodule"
+  },
+  "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "const-values" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/GeneratedAssetSymbols.swiftconstvalues",
+    "dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/GeneratedAssetSymbols.d",
+    "diagnostics" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/GeneratedAssetSymbols.dia",
+    "index-unit-output-path" : "/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/GeneratedAssetSymbols.o",
+    "swift-dependencies" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/GeneratedAssetSymbols.swiftdeps",
+    "swiftmodule" : "/Users/jnanismart/Documents/Clippy/build/Clippy.build/Debug/Clippy.build/Objects-normal/x86_64/GeneratedAssetSymbols~partial.swiftmodule"
+  }
+}

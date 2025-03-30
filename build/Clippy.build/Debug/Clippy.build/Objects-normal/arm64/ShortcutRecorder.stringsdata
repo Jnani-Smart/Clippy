@@ -1,0 +1,48 @@
+{
+  "source": "/Users/jnanismart/Documents/Clippy/Clippy/Utilities/ShortcutRecorder.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "None",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 18
+        }
+      },
+      {
+        "comment": "",
+        "key": "Press keys...",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 47
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel recording",
+        "location": {
+          "startingColumn": 33,
+          "startingLine": 44
+        }
+      },
+      {
+        "comment": "",
+        "key": "Record shortcut",
+        "location": {
+          "startingColumn": 54,
+          "startingLine": 44
+        }
+      },
+      {
+        "comment": "",
+        "key": "Reset to default (⌘⇧V)",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 73
+        }
+      }
+    ]
+  },
+  "version": 1
+}
