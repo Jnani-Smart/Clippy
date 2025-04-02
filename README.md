@@ -34,9 +34,6 @@ Clippy is a lightweight, elegant clipboard manager for macOS that helps you mana
 ### Category Filtering
 <img src="screenshots/3.png" width="300" alt="Category Filtering">
 
-### Text-Only Options Menu
-<img src="screenshots/6.png" width="300" alt="Text-Only Options Menu">
-
 ### Empty State
 <img src="screenshots/4.png" width="300" alt="Empty State">
 
