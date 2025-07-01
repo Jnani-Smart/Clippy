@@ -175,7 +175,7 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
             object: nil,
             queue: .main
         ) { [weak self] notification in
-            if let hideMenuBarIcon = notification.userInfo?["hideMenuBarIcon"] as? Bool {
+            if notification.userInfo?["hideMenuBarIcon"] is Bool {
                 // Allow hiding the menu bar icon even if dock icon is hidden
                 // User can still access the app via keyboard shortcut
                 self?.updateStatusBarVisibility()
@@ -1000,9 +1000,9 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
             Task {
                 do {
                     if enabled {
-                        let _ = try await SMAppService.mainApp.register()
+                        let _ = try SMAppService.mainApp.register()
                     } else {
-                        let _ = try await SMAppService.mainApp.unregister()
+                        let _ = try SMAppService.mainApp.unregister()
                     }
                 } catch {
                     print("Error managing login item: \(error.localizedDescription)")
@@ -1055,7 +1055,7 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
                 
                 // Force refresh activation policy after a short delay
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    let tmpPolicy = NSApp.activationPolicy()
+                    let _ = NSApp.activationPolicy()
                     NSApp.setActivationPolicy(.prohibited)
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         NSApp.setActivationPolicy(.accessory)

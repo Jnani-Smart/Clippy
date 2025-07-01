@@ -21,9 +21,9 @@ struct SearchBar: View {
                 .onTapGesture {
                     isEditing = true
                 }
-                .onChange(of: text) { newValue in
+                .onChange(of: text) {
                     // Debug logging
-                    print("Search text changed to: \(newValue)")
+                    print("Search text changed to: \(text)")
                     // This explicit notification of change helps update the search immediately
                     NotificationCenter.default.post(name: NSNotification.Name("SearchTextChanged"), object: nil)
                 }

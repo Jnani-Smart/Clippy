@@ -116,7 +116,7 @@ struct ClipboardItemRow: View {
         guard let imageData = item.imageData, let image = NSImage(data: imageData) else { return }
         
         let savePanel = NSSavePanel()
-        savePanel.allowedFileTypes = ["png", "jpg", "jpeg"]
+        savePanel.allowedContentTypes = [.png, .jpeg]
         savePanel.nameFieldStringValue = "Clipboard_Image_\(Int(Date().timeIntervalSince1970)).png"
         savePanel.canCreateDirectories = true
         
@@ -230,13 +230,9 @@ struct ClipboardItemRow: View {
     @ViewBuilder
     private func codeSnippetView(language: CodeLanguage) -> some View {
         if #available(macOS 12.0, *), let formattedCode = item.formattedCode {
-            // Handle either AttributedString or String
-            if let formattedString = formattedCode as? String {
-                codeTextView(text: formattedString)
-            } else {
-                // Fall back to regular text if it's AttributedString
-                codeTextView(text: item.text ?? "")
-            }
+            // Convert AttributedString to String for display
+            let codeText = String(formattedCode.characters)
+            codeTextView(text: codeText)
         } else {
             codeTextView(text: item.text ?? "")
         }

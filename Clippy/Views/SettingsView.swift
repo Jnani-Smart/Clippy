@@ -38,11 +38,11 @@ struct CloseButtonRepresentable: NSViewRepresentable {
     
     func makeNSView(context: Context) -> NSButton {
         // Set colors similar to macOS system close button but with glass effect
-        let hoverNormalColor = NSAppearance.current.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        let hoverNormalColor = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
             ? NSColor.white.withAlphaComponent(0.15).cgColor
             : NSColor.black.withAlphaComponent(0.08).cgColor
             
-        let hoverActiveColor = NSAppearance.current.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        let hoverActiveColor = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
             ? NSColor.white.withAlphaComponent(0.3).cgColor
             : NSColor.black.withAlphaComponent(0.15).cgColor
         
@@ -125,11 +125,11 @@ struct CloseButtonRepresentable: NSViewRepresentable {
         
         init(onClose: @escaping () -> Void) {
             self.onClose = onClose
-            self.normalColor = NSAppearance.current.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            self.normalColor = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
                 ? NSColor.white.withAlphaComponent(0.15).cgColor
                 : NSColor.black.withAlphaComponent(0.08).cgColor
                 
-            self.hoverColor = NSAppearance.current.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            self.hoverColor = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
                 ? NSColor.white.withAlphaComponent(0.3).cgColor
                 : NSColor.black.withAlphaComponent(0.15).cgColor
         }
@@ -1154,7 +1154,7 @@ struct SettingsView: View {
         openPanel.canChooseFiles = true
         openPanel.canChooseDirectories = false
         openPanel.allowsMultipleSelection = false
-        openPanel.allowedFileTypes = ["app"]
+        openPanel.allowedContentTypes = [.application]
         openPanel.directoryURL = URL(fileURLWithPath: "/Applications")
         openPanel.message = "Select an application to exclude from clipboard monitoring"
         openPanel.prompt = "Exclude"
@@ -1543,7 +1543,7 @@ struct DraggableView: NSViewRepresentable {
         
         override func mouseDown(with event: NSEvent) {
             super.mouseDown(with: event)
-            guard let window = self.window else { return }
+            guard self.window != nil else { return }
             
             isDragging = true
             initialLocation = event.locationInWindow
@@ -1732,7 +1732,7 @@ struct PrivacySection: View {
         openPanel.canChooseFiles = true
         openPanel.canChooseDirectories = false
         openPanel.allowsMultipleSelection = false
-        openPanel.allowedFileTypes = ["app"]
+        openPanel.allowedContentTypes = [.application]
         openPanel.directoryURL = URL(fileURLWithPath: "/Applications")
         openPanel.message = "Select an application to exclude from clipboard monitoring"
         openPanel.prompt = "Exclude"

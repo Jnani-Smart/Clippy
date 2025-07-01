@@ -80,13 +80,9 @@ class ClipboardManager: ObservableObject {
             forName: NSNotification.Name("ExcludedAppsChanged"),
             object: nil,
             queue: .main
-        ) { [weak self] notification in
-            if let apps = notification.userInfo?["excludedApps"] as? [String] {
-                // The array is already saved to UserDefaults, just log it
-                #if DEBUG
-                print("Updated excluded apps: \(apps)")
-                #endif
-            }
+        ) { _ in
+            // Notification received for excluded apps change
+            // The array is already saved to UserDefaults by the sender
         }
     }
     
