@@ -1,0 +1,24 @@
+{
+  "source": "/Users/jnanismart/Documents/Clippy/Clippy/Views/SearchBar.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Search",
+        "location": {
+          "startingColumn": 23,
+          "startingLine": 18
+        }
+      },
+      {
+        "comment": "",
+        "key": "Toggle Category Filter",
+        "location": {
+          "startingColumn": 19,
+          "startingLine": 69
+        }
+      }
+    ]
+  },
+  "version": 1
+}

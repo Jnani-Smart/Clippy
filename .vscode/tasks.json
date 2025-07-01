@@ -1,0 +1,15 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build and Run Clippy",
+			"type": "shell",
+			"command": "cd /Users/jnanismart/Clippy && xcodebuild -scheme Clippy -configuration Debug build",
+			"group": "build",
+			"isBackground": false,
+			"problemMatcher": [
+				"$gcc"
+			]
+		}
+	]
+}

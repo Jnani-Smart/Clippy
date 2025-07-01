@@ -1,0 +1,24 @@
+{
+  "source": "/Users/jnanismart/Documents/Clippy/Clippy/ClipboardManagerApp.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Loading settings...",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 19
+        }
+      },
+      {
+        "comment": "",
+        "key": "Settings",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 38
+        }
+      }
+    ]
+  },
+  "version": 1
+}

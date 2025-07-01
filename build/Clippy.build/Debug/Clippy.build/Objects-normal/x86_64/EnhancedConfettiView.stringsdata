@@ -1,0 +1,24 @@
+{
+  "source": "/Users/jnanismart/Documents/Clippy/Clippy/Views/EnhancedConfettiView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Thank You for Downloading!",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 243
+        }
+      },
+      {
+        "comment": "",
+        "key": "Enjoy your enhanced clipboard experience",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 251
+        }
+      }
+    ]
+  },
+  "version": 1
+}

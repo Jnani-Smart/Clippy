@@ -1,0 +1,312 @@
+{
+  "source": "/Users/jnanismart/Documents/Clippy/Clippy/Views/SettingsView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Settings",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 271
+        }
+      },
+      {
+        "comment": "",
+        "key": "General",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 285
+        }
+      },
+      {
+        "comment": "",
+        "key": "Privacy",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 291
+        }
+      },
+      {
+        "comment": "",
+        "key": "Categories",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 297
+        }
+      },
+      {
+        "comment": "",
+        "key": "Shortcuts",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 303
+        }
+      },
+      {
+        "comment": "",
+        "key": "Data Management",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 309
+        }
+      },
+      {
+        "comment": "",
+        "key": "About",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 315
+        }
+      },
+      {
+        "comment": "",
+        "key": "Quit Clippy",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 546
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clippy won't monitor clipboard changes from these apps:",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 594
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add App",
+        "location": {
+          "startingColumn": 39,
+          "startingLine": 603
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clear All",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 612
+        }
+      },
+      {
+        "comment": "",
+        "key": "Default Categories",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 663
+        }
+      },
+      {
+        "comment": "",
+        "key": "Changes will take effect after restarting the app.",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 711
+        }
+      },
+      {
+        "comment": "",
+        "key": "Show clipboard history:",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 688
+        }
+      },
+      {
+        "comment": "",
+        "key": "Export your clipboard history to a file or import from a previously exported file.",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 728
+        }
+      },
+      {
+        "comment": "",
+        "key": "Export History",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 751
+        }
+      },
+      {
+        "comment": "",
+        "key": "Import History",
+        "location": {
+          "startingColumn": 42,
+          "startingLine": 777
+        }
+      },
+      {
+        "comment": "",
+        "key": "Reset all settings to their default values or clear your clipboard history. Use these options to troubleshoot issues or start fresh.",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 792
+        }
+      },
+      {
+        "comment": "",
+        "key": "A modern clipboard manager for macOS",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 864
+        }
+      },
+      {
+        "comment": "",
+        "key": "© 2025 Jnani Smart",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 867
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clippy",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 853
+        }
+      },
+      {
+        "comment": "",
+        "key": "Version %@",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 855
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 1222
+        }
+      },
+      {
+        "comment": "",
+        "key": "",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 1255
+        }
+      },
+      {
+        "comment": "",
+        "key": "Made with ❤️",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 1499
+        }
+      },
+      {
+        "comment": "",
+        "key": "Version: %@",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 1503
+        }
+      },
+      {
+        "comment": "",
+        "key": "By Jnani Smart",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 1507
+        }
+      },
+      {
+        "comment": "",
+        "key": "Check for Updates",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1520
+        }
+      },
+      {
+        "comment": "",
+        "key": "Privacy",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 1544
+        }
+      },
+      {
+        "comment": "",
+        "key": "Sensitive content includes passwords, credit card numbers, and other personal information",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1553
+        }
+      },
+      {
+        "comment": "",
+        "key": "All stored clipboard data will be encrypted on your device",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 1564
+        }
+      },
+      {
+        "comment": "",
+        "key": "App Exclusions",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 1572
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clippy won't monitor clipboard changes from these apps:",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 1576
+        }
+      },
+      {
+        "comment": "",
+        "key": "Detect sensitive content",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 1546
+        }
+      },
+      {
+        "comment": "",
+        "key": "Don't store sensitive content",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 1550
+        }
+      },
+      {
+        "comment": "",
+        "key": "Encrypt clipboard storage",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 1560
+        }
+      },
+      {
+        "comment": "",
+        "key": "Add App",
+        "location": {
+          "startingColumn": 31,
+          "startingLine": 1585
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clear All",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 1594
+        }
+      }
+    ]
+  },
+  "version": 1
+}
