@@ -187,6 +187,7 @@ struct SettingsView: View {
     @AppStorage("maxHistoryItems") private var maxHistoryItems = 30
     @AppStorage("autoPaste") private var autoPaste = true
     @AppStorage("storeImages") private var storeImages = true
+    @AppStorage("compressImages") private var compressImages = false // New setting for image compression
     @AppStorage("detectSensitiveContent") private var detectSensitiveContent = false
     @AppStorage("skipSensitiveContent") private var skipSensitiveContent = false
 
@@ -553,6 +554,12 @@ struct SettingsView: View {
                         VisionOSToggle(title: "Auto-paste after copying", isOn: $autoPaste)
                         
                         VisionOSToggle(title: "Store images in history", isOn: $storeImages)
+                        
+                        VisionOSToggle(
+                            title: "Compress images", 
+                            description: "Reduce image file sizes to save storage. When disabled, original image quality is preserved.",
+                            isOn: $compressImages
+                        )
                     }
                 }
                 

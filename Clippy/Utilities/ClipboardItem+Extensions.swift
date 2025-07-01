@@ -492,9 +492,14 @@ extension ClipboardItem {
 
 // NSImage extensions for optimized processing
 extension NSImage {
-    func resizedImageData(to newSize: CGSize, compressionQuality: CGFloat = 0.8) -> Data? {
+    func resizedImageData(to newSize: CGSize, compressionQuality: CGFloat = 0.8, preserveFormat: Bool = true) -> Data? {
         guard let cgImage = self.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
             return nil
+        }
+        
+        // If preserving format and the image doesn't need resizing, return original data
+        if preserveFormat && newSize == self.size {
+            return self.tiffRepresentation
         }
         
         // Create bitmap context with new size
@@ -523,24 +528,133 @@ extension NSImage {
         
         NSGraphicsContext.restoreGraphicsState()
         
-        // Generate compressed JPEG data
-        return bitmapRep?.representation(using: .jpeg, properties: [.compressionFactor: compressionQuality])
+        // When preserving format, try to use PNG for lossless compression
+        if preserveFormat {
+            return bitmapRep?.representation(using: .png, properties: [:])
+        } else {
+            // Generate compressed JPEG data only when not preserving format
+            return bitmapRep?.representation(using: .jpeg, properties: [.compressionFactor: compressionQuality])
+        }
     }
     
-    func compressedImageData(compressionQuality: CGFloat = 0.8) -> Data? {
+    func compressedImageData(compressionQuality: CGFloat = 0.8, preserveFormat: Bool = true) -> Data? {
+        // When preserving format, try to return original data or use PNG
+        if preserveFormat {
+            // Try to preserve original format by returning TIFF representation
+            if let tiffData = self.tiffRepresentation {
+                return tiffData
+            }
+        }
+        
         // Create bitmap representation of the image
         if let tiffData = self.tiffRepresentation,
            let bitmapRep = NSBitmapImageRep(data: tiffData) {
-            // Return JPEG representation at specified quality
-            return bitmapRep.representation(using: .jpeg, properties: [.compressionFactor: compressionQuality])
+            
+            if preserveFormat {
+                // Use PNG for lossless compression when preserving format
+                return bitmapRep.representation(using: .png, properties: [:])
+            } else {
+                // Return JPEG representation at specified quality
+                return bitmapRep.representation(using: .jpeg, properties: [.compressionFactor: compressionQuality])
+            }
         }
         return nil
     }
     
-    // Cache-friendly variant of downsample
-    func downsample(to targetSize: CGSize) -> Data? {
-        // Use resizedImageData with memory optimization
-        return resizedImageData(to: targetSize, compressionQuality: 0.7)
+    // Cache-friendly variant of downsample with format preservation
+    func downsample(to targetSize: CGSize, preserveFormat: Bool = true) -> Data? {
+        // Use resizedImageData with memory optimization and format preservation
+        return resizedImageData(to: targetSize, compressionQuality: 0.7, preserveFormat: preserveFormat)
+    }
+    
+    // New function to preserve original image format based on data signature
+    func preserveOriginalFormat(from originalData: Data) -> Data? {
+        // Detect the original format from the data signature
+        let formatType = detectImageFormat(from: originalData)
+        
+        // If we can preserve the original format, do so
+        if let tiffData = self.tiffRepresentation,
+           let bitmapRep = NSBitmapImageRep(data: tiffData) {
+            
+            switch formatType {
+            case .png:
+                return bitmapRep.representation(using: .png, properties: [:])
+            case .jpeg:
+                // Use high quality JPEG if original was JPEG
+                return bitmapRep.representation(using: .jpeg, properties: [.compressionFactor: 0.98])
+            case .tiff:
+                return bitmapRep.representation(using: .tiff, properties: [:])
+            case .gif:
+                // GIF is complex, use PNG as fallback to preserve quality
+                return bitmapRep.representation(using: .png, properties: [:])
+            case .bmp:
+                return bitmapRep.representation(using: .bmp, properties: [:])
+            case .heic, .heif:
+                // Use PNG for HEIC/HEIF since we can't easily create those
+                return bitmapRep.representation(using: .png, properties: [:])
+            case .unknown:
+                // Default to PNG for unknown formats
+                return bitmapRep.representation(using: .png, properties: [:])
+            }
+        }
+        
+        return originalData // Return original if conversion fails
+    }
+    
+    private func detectImageFormat(from data: Data) -> ImageFormat {
+        guard data.count >= 12 else { return .unknown }
+        
+        // Check PNG signature
+        if data.count >= 8 && data.subdata(in: 0..<8) == Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]) {
+            return .png
+        }
+        
+        // Check JPEG signature
+        if data.count >= 3 && data.subdata(in: 0..<3) == Data([0xFF, 0xD8, 0xFF]) {
+            return .jpeg
+        }
+        
+        // Check TIFF signatures (both little and big endian)
+        if data.count >= 4 {
+            let tiffLE = Data([0x49, 0x49, 0x2A, 0x00])
+            let tiffBE = Data([0x4D, 0x4D, 0x00, 0x2A])
+            if data.subdata(in: 0..<4) == tiffLE || data.subdata(in: 0..<4) == tiffBE {
+                return .tiff
+            }
+        }
+        
+        // Check GIF signatures
+        if data.count >= 6 {
+            if let gif87a = "GIF87a".data(using: .ascii), data.subdata(in: 0..<6) == gif87a {
+                return .gif
+            }
+            if let gif89a = "GIF89a".data(using: .ascii), data.subdata(in: 0..<6) == gif89a {
+                return .gif
+            }
+        }
+        
+        // Check BMP signature
+        if data.count >= 2 && data.subdata(in: 0..<2) == Data([0x42, 0x4D]) {
+            return .bmp
+        }
+        
+        // Check HEIC/HEIF signatures (simplified)
+        if data.count >= 12 {
+            if let ftyp = "ftyp".data(using: .ascii), data.subdata(in: 4..<8) == ftyp {
+                if let heic = "heic".data(using: .ascii), data.subdata(in: 8..<12) == heic {
+                    return .heic
+                }
+                if let heif = "heif".data(using: .ascii), data.subdata(in: 8..<12) == heif {
+                    return .heif
+                }
+            }
+        }
+        
+        return .unknown
+    }
+    
+    enum ImageFormat {
+        case png, jpeg, tiff, gif, bmp, heic, heif, unknown
     }
 }
 

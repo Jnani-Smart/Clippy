@@ -14,7 +14,7 @@ class ClipboardManager: ObservableObject {
     private let maxItems = 30
     private var lastUpdateTime = Date()
     private let updateThreshold: TimeInterval = 0.2
-    private let maxImageSize: Int = 1024 * 1024 * 5 // 5MB limit for images
+    private let maxImageSize: Int = 1024 * 1024 * 20 // 20MB limit for uncompressed images
     private var isInternalPasteboardChange = false
     private var lastCopiedItemId: UUID?
     private let serialProcessingQueue = DispatchQueue(label: "com.clippy.serialProcessing")
@@ -121,6 +121,14 @@ class ClipboardManager: ObservableObject {
         
         // Check if this might be Handoff content - always process Handoff regardless of internal flags
         let isHandoffContent = isLikelyHandoffContent()
+        
+        #if DEBUG
+        if isHandoffContent {
+            print("🔄 Detected ACTUAL Handoff content from another device")
+        } else {
+            print("📱 Regular clipboard content from current device")
+        }
+        #endif
         
         // Check if this is from a recent internal paste operation
         // Allow Handoff content to bypass this check
@@ -282,12 +290,16 @@ class ClipboardManager: ObservableObject {
             // Check for other image formats that might come from Handoff
             if !imageProcessed {
                 let imageTypes: [NSPasteboard.PasteboardType] = [
-                    NSPasteboard.PasteboardType("public.jpeg"),
-                    NSPasteboard.PasteboardType("public.image"),
-                    NSPasteboard.PasteboardType("com.apple.pict"),
-                    NSPasteboard.PasteboardType("public.svg-image"), // Add SVG support
-                    NSPasteboard.PasteboardType("public.heic"),
-                    NSPasteboard.PasteboardType("public.webp")
+                    NSPasteboard.PasteboardType("public.png"),      // PNG format (lossless)
+                    NSPasteboard.PasteboardType("public.jpeg"),     // JPEG format
+                    NSPasteboard.PasteboardType("public.tiff"),     // TIFF format (lossless)
+                    NSPasteboard.PasteboardType("public.image"),    // Generic image
+                    NSPasteboard.PasteboardType("com.apple.pict"),  // PICT format
+                    NSPasteboard.PasteboardType("public.svg-image"), // SVG support
+                    NSPasteboard.PasteboardType("public.heic"),     // HEIC format
+                    NSPasteboard.PasteboardType("public.heif"),     // HEIF format
+                    NSPasteboard.PasteboardType("public.webp"),     // WebP format
+                    NSPasteboard.PasteboardType("public.bmp")       // BMP format
                 ]
                 
                 for imageType in imageTypes {
@@ -295,9 +307,9 @@ class ClipboardManager: ObservableObject {
                         if let imageData = self.pasteboard.data(forType: imageType) {
                             #if DEBUG
                             if isHandoffContent {
-                                print("🖼️ Processing Handoff image data of type \(imageType.rawValue): \(imageData.count) bytes")
+                                print("🖼️ Processing Handoff image data of type \(imageType.rawValue): \(imageData.count) bytes (preserving original format)")
                             } else {
-                                print("🖼️ Processing regular image data of type \(imageType.rawValue): \(imageData.count) bytes")
+                                print("🖼️ Processing regular image data of type \(imageType.rawValue): \(imageData.count) bytes (preserving original format)")
                             }
                             #endif
                             
@@ -310,18 +322,10 @@ class ClipboardManager: ObservableObject {
                                 }
                                 #endif
                                 
-                                // Try to convert SVG to a format NSImage can handle
-                                var processedData = imageData
-                                if let svgImage = NSImage(data: imageData) {
-                                    if let tiffData = svgImage.tiffRepresentation {
-                                        processedData = tiffData
-                                        #if DEBUG
-                                        print("🎨 Successfully converted SVG to TIFF: \(tiffData.count) bytes")
-                                        #endif
-                                    }
-                                }
-                                self.addItem(imageData: processedData, isFromHandoff: isHandoffContent)
+                                // For SVG, preserve the original data to maintain vector quality
+                                self.addItem(imageData: imageData, isFromHandoff: isHandoffContent)
                             } else {
+                                // For all other image formats, preserve original data without compression
                                 self.addItem(imageData: imageData, isFromHandoff: isHandoffContent)
                             }
                             imageProcessed = true
@@ -437,6 +441,15 @@ class ClipboardManager: ObservableObject {
                     self.clipboardItems.removeLast()
                 }
                 self.saveItems()
+                
+                #if DEBUG
+                let sourceAppName = newItem.sourceApp ?? "Unknown"
+                if isFromHandoff {
+                    print("✅ Successfully added Handoff text to clipboard history (source: \(sourceAppName), sensitive: true)")
+                } else {
+                    print("✅ Successfully added text to clipboard history (source: \(sourceAppName), sensitive: true)")
+                }
+                #endif
             }
         } else {
             let newItem = ClipboardItem(text: string, isFromHandoff: isFromHandoff)
@@ -447,6 +460,15 @@ class ClipboardManager: ObservableObject {
                     self.clipboardItems.removeLast()
                 }
                 self.saveItems()
+                
+                #if DEBUG
+                let sourceAppName = newItem.sourceApp ?? "Unknown"
+                if isFromHandoff {
+                    print("✅ Successfully added Handoff text to clipboard history (source: \(sourceAppName))")
+                } else {
+                    print("✅ Successfully added text to clipboard history (source: \(sourceAppName))")
+                }
+                #endif
             }
         }
     }
@@ -471,27 +493,40 @@ class ClipboardManager: ObservableObject {
         
         #if DEBUG
         if isFromHandoff {
-            print("🔄 Adding Handoff image: \(rawData.count) bytes")
+            print("🔄 Adding Handoff image: \(rawData.count) bytes (uncompressed)")
         } else {
-            print("🔄 Adding regular image: \(rawData.count) bytes")
+            print("🔄 Adding regular image: \(rawData.count) bytes (uncompressed)")
         }
         #endif
         
-        // For Handoff images, try to preserve quality better
-        var optimizedData: Data
-        if isFromHandoff {
-            // Less aggressive optimization for Handoff images
-            optimizedData = optimizeImageData(rawData, isFromHandoff: true)
-        } else {
-            optimizedData = optimizeImageData(rawData)
-        }
+        // Check user preference for image compression
+        let shouldCompress = UserDefaults.standard.bool(forKey: "compressImages")
         
-        // Validate the optimized data
-        if optimizedData.isEmpty || NSImage(data: optimizedData) == nil {
+        var optimizedData: Data
+        if shouldCompress {
             #if DEBUG
-            print("❌ Image optimization failed, using original data")
+            print("🔧 Compressing image as per user preference")
             #endif
-            // Fall back to original data if optimization failed
+            // Apply compression based on user preference
+            if isFromHandoff {
+                optimizedData = optimizeImageData(rawData, isFromHandoff: true)
+            } else {
+                optimizedData = optimizeImageData(rawData)
+            }
+            
+            // Validate the optimized data
+            if optimizedData.isEmpty || NSImage(data: optimizedData) == nil {
+                #if DEBUG
+                print("❌ Image optimization failed, using original data")
+                #endif
+                // Fall back to original data if optimization failed
+                optimizedData = rawData
+            }
+        } else {
+            #if DEBUG
+            print("✅ Preserving original image data without compression (user preference)")
+            #endif
+            // Preserve original image data without compression
             optimizedData = rawData
         }
         
@@ -501,16 +536,25 @@ class ClipboardManager: ObservableObject {
             guard let self = self else { return }
             
             // Check if we already have this exact image (to avoid duplicates)
-            // Use a more lenient duplicate detection for images
+            // Use improved duplicate detection for images, especially uncompressed ones
             let isDuplicate = self.clipboardItems.contains { existingItem in
                 guard existingItem.type == .image,
                       let existingData = existingItem.imageData else { return false }
                 
-                // Consider images duplicate if they're very similar in size (within 10%)
-                let sizeDifference = abs(existingData.count - optimizedData.count)
-                let tolerance = max(existingData.count, optimizedData.count) / 10
+                // For uncompressed images, be more precise in duplicate detection
+                let shouldCompress = UserDefaults.standard.bool(forKey: "compressImages")
                 
-                return sizeDifference < tolerance && existingItem.timestamp.timeIntervalSinceNow > -5 // Within last 5 seconds
+                if shouldCompress {
+                    // For compressed images, use size-based comparison (within 10%)
+                    let sizeDifference = abs(existingData.count - optimizedData.count)
+                    let tolerance = max(existingData.count, optimizedData.count) / 10
+                    return sizeDifference < tolerance && existingItem.timestamp.timeIntervalSinceNow > -5
+                } else {
+                    // For uncompressed images, use exact size comparison for better accuracy
+                    let sizeDifference = abs(existingData.count - optimizedData.count)
+                    let tolerance = max(existingData.count, optimizedData.count) / 100 // 1% tolerance for uncompressed
+                    return sizeDifference < tolerance && existingItem.timestamp.timeIntervalSinceNow > -10 // Longer window for uncompressed
+                }
             }
             
             if !isDuplicate {
@@ -521,10 +565,11 @@ class ClipboardManager: ObservableObject {
                 self.saveItems()
                 
                 #if DEBUG
+                let sourceAppName = newItem.sourceApp ?? "Unknown"
                 if isFromHandoff {
-                    print("✅ Successfully added Handoff image to clipboard history (optimized: \(optimizedData.count) bytes)")
+                    print("✅ Successfully added Handoff image to clipboard history (source: \(sourceAppName), size: \(optimizedData.count) bytes)")
                 } else {
-                    print("✅ Successfully added image to clipboard history (optimized: \(optimizedData.count) bytes)")
+                    print("✅ Successfully added image to clipboard history (source: \(sourceAppName), size: \(optimizedData.count) bytes)")
                 }
                 print("📊 Total clipboard items: \(self.clipboardItems.count)")
                 #endif
@@ -545,6 +590,15 @@ class ClipboardManager: ObservableObject {
                 self.clipboardItems.removeLast()
             }
             self.saveItems()
+            
+            #if DEBUG
+            let sourceAppName = newItem.sourceApp ?? "Unknown"
+            if isFromHandoff {
+                print("✅ Successfully added Handoff URL to clipboard history (source: \(sourceAppName)): \(url.absoluteString)")
+            } else {
+                print("✅ Successfully added URL to clipboard history (source: \(sourceAppName)): \(url.absoluteString)")
+            }
+            #endif
         }
     }
     
@@ -1164,57 +1218,44 @@ class ClipboardManager: ObservableObject {
         print("Available pasteboard types: \(availableTypes.map { $0.rawValue })")
         #endif
         
-        // Handoff content often includes specific UTI types
-        let handoffIndicators = [
+        // Only check for very specific Handoff indicators that are unique to cross-device clipboard
+        let specificHandoffIndicators = [
+            "com.apple.is-remote-clipboard", // Explicit Handoff marker
             "com.apple.pasteboard.promised-file-url",
             "com.apple.pasteboard.promised-file-content-type",
-            "public.utf8-plain-text",
-            "public.rtf",
-            "public.jpeg",
-            "public.png",
-            "public.tiff",
-            "public.svg-image", // SVG images
-            "com.apple.pasteboard.promised-file-url",
-            "com.apple.NSFilenamesPboardType",
-            "public.file-url",
-            "public.url", // URLs from Handoff
-            "Apple URL pasteboard type", // Apple's URL type
-            "com.apple.is-remote-clipboard" // Explicit Handoff marker
+            "com.apple.handoff", // Direct handoff type
+            "com.apple.continuity" // Continuity feature type
         ]
         
-        // Check for common Handoff patterns
-        for indicator in handoffIndicators {
+        // Check for explicit Handoff indicators first
+        for indicator in specificHandoffIndicators {
             if availableTypes.contains(NSPasteboard.PasteboardType(indicator)) {
                 #if DEBUG
-                print("Found Handoff indicator: \(indicator)")
+                print("Found specific Handoff indicator: \(indicator)")
                 #endif
                 return true
             }
         }
         
-        // Check for Apple's internal Handoff types
+        // Check for Apple's internal Handoff types - but be more specific
         let handoffInternalTypes = availableTypes.filter { type in
-            type.rawValue.contains("com.apple") || 
-            type.rawValue.contains("handoff") ||
-            type.rawValue.contains("continuity")
+            let rawValue = type.rawValue.lowercased()
+            return rawValue.contains("handoff") || 
+                   rawValue.contains("continuity") ||
+                   rawValue.contains("remote-clipboard") ||
+                   (rawValue.contains("com.apple") && rawValue.contains("promise"))
         }
         
         if !handoffInternalTypes.isEmpty {
             #if DEBUG
-            print("Found Apple internal types that might indicate Handoff: \(handoffInternalTypes.map { $0.rawValue })")
+            print("Found Apple Handoff-specific types: \(handoffInternalTypes.map { $0.rawValue })")
             #endif
             return true
         }
         
-        // Additional check: if there are multiple content types present,
-        // it might be Handoff providing rich content
-        let hasMultipleTypes = availableTypes.count > 2
-        
-        // Also check if we have both public types and images, which is common with Handoff
-        let hasPublicTypes = availableTypes.contains { $0.rawValue.hasPrefix("public.") }
-        let hasImageTypes = availableTypes.contains { $0.rawValue.contains("image") || $0.rawValue.contains("jpeg") || $0.rawValue.contains("png") || $0.rawValue.contains("tiff") }
-        
-        return hasMultipleTypes || (hasPublicTypes && hasImageTypes)
+        // Remove the broad detection that was catching everything
+        // Only return true for explicit Handoff indicators
+        return false
     }
     
     private func extractFileURL(from data: Data) -> URL? {
@@ -1315,7 +1356,7 @@ struct ClipboardItem: Identifiable, Codable {
         }
         
         // Capture the source app
-        self.sourceApp = ClipboardItem.getCurrentAppName()
+        self.sourceApp = ClipboardItem.getCurrentAppName(isFromHandoff: isFromHandoff)
     }
     
     init(imageData: Data, isFromHandoff: Bool = false) {
@@ -1329,7 +1370,7 @@ struct ClipboardItem: Identifiable, Codable {
         self.isFromHandoff = isFromHandoff
         
         // Capture the source app
-        self.sourceApp = ClipboardItem.getCurrentAppName()
+        self.sourceApp = ClipboardItem.getCurrentAppName(isFromHandoff: isFromHandoff)
     }
     
     init(url: URL, isFromHandoff: Bool = false) {
@@ -1343,11 +1384,16 @@ struct ClipboardItem: Identifiable, Codable {
         self.isFromHandoff = isFromHandoff
         
         // Capture the source app
-        self.sourceApp = ClipboardItem.getCurrentAppName()
+        self.sourceApp = ClipboardItem.getCurrentAppName(isFromHandoff: isFromHandoff)
     }
     
     // Get the current active application name
-    static func getCurrentAppName() -> String? {
+    static func getCurrentAppName(isFromHandoff: Bool = false) -> String? {
+        // If the item is from Handoff, return "Handoff" as the app name
+        if isFromHandoff {
+            return "Handoff"
+        }
+        
         // Get the frontmost app using NSWorkspace
         if let frontmostApp = NSWorkspace.shared.frontmostApplication {
             return frontmostApp.localizedName
