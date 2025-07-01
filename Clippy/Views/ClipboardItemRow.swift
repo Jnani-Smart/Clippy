@@ -384,17 +384,101 @@ struct LazyImageView: View {
         // Use the image cache for better performance
         let imageId = String(describing: imageData.hashValue)
         
+        // Add debugging for image loading
+        #if DEBUG
+        print("🖼️ LazyImageView loading image: \(imageData.count) bytes")
+        #endif
+        
+        // Validate image data first
+        guard !imageData.isEmpty else {
+            #if DEBUG
+            print("❌ LazyImageView: Image data is empty")
+            #endif
+            return
+        }
+        
+        // Try to create NSImage directly first
+        if let directImage = NSImage(data: imageData) {
+            #if DEBUG
+            print("✅ LazyImageView: Successfully created NSImage directly")
+            #endif
+            nsImage = directImage
+            return
+        }
+        
+        // Check if this might be SVG data
+        if let svgString = String(data: imageData, encoding: .utf8), svgString.contains("<svg") {
+            #if DEBUG
+            print("🎨 LazyImageView: Detected SVG content, attempting to render")
+            #endif
+            
+            // For SVG, create a placeholder image with SVG indicator
+            let placeholderImage = createSVGPlaceholder()
+            nsImage = placeholderImage
+            return
+        }
+        
+        #if DEBUG
+        print("❌ LazyImageView: Failed to create NSImage from data")
+        #endif
+        
+        // If direct creation fails, try using the cache (which might have better error handling)
         if imageData.count < 10 * 1024 {
-            // Small images load directly
-            nsImage = NSImage(data: imageData)
+            // Small images load directly - but we already tried that above
+            #if DEBUG
+            print("❌ LazyImageView: Small image failed to load")
+            #endif
         } else {
             // Larger images load asynchronously
             DispatchQueue.global(qos: .userInitiated).async {
                 let image = ImageCache.shared.image(for: imageId, data: imageData)
                 DispatchQueue.main.async {
-                    self.nsImage = image
+                    if image.size.width > 0 && image.size.height > 0 {
+                        #if DEBUG
+                        print("✅ LazyImageView: Successfully loaded large image via cache")
+                        #endif
+                        self.nsImage = image
+                    } else {
+                        #if DEBUG
+                        print("❌ LazyImageView: Cache returned invalid image")
+                        #endif
+                    }
                 }
             }
         }
+    }
+    
+    private func createSVGPlaceholder() -> NSImage {
+        let size = NSSize(width: 100, height: 60)
+        let image = NSImage(size: size)
+        
+        image.lockFocus()
+        defer { image.unlockFocus() }
+        
+        // Draw background
+        NSColor.controlBackgroundColor.set()
+        let rect = NSRect(origin: .zero, size: size)
+        rect.fill()
+        
+        // Draw border
+        NSColor.separatorColor.set()
+        rect.frame()
+        
+        // Add SVG text
+        let text = "SVG"
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 12, weight: .medium),
+            .foregroundColor: NSColor.labelColor
+        ]
+        let textSize = text.size(withAttributes: attributes)
+        let textRect = NSRect(
+            x: (size.width - textSize.width) / 2,
+            y: (size.height - textSize.height) / 2,
+            width: textSize.width,
+            height: textSize.height
+        )
+        text.draw(in: textRect, withAttributes: attributes)
+        
+        return image
     }
 }
