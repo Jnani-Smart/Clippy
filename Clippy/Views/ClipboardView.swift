@@ -158,19 +158,22 @@ struct ClipboardView: View {
         VStack(spacing: 0) {
             headerView
             
-            // Custom VisionOS-style segmented control
-            HStack(spacing: 1) {
-                tabButton(index: 0, icon: "clock.fill", label: "Recent")
-                tabButton(index: 1, icon: "pin.fill", label: "Pinned")
+            // Custom VisionOS-style segmented control - hidden in selection mode
+            if !isSelectMode {
+                HStack(spacing: 1) {
+                    tabButton(index: 0, icon: "clock.fill", label: "Recent")
+                    tabButton(index: 1, icon: "pin.fill", label: "Pinned")
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color.primary.opacity(colorScheme == .dark ? 0.07 : 0.04))
+                        .shadow(color: Color.black.opacity(0.04), radius: 1, x: 0, y: 1)
+                )
+                .padding(.horizontal, 16)
+                .padding(.vertical, 4)
+                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: segmentedSelection)
+                .transition(.opacity.animation(.easeOut(duration: 0.2)))
             }
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.primary.opacity(colorScheme == .dark ? 0.07 : 0.04))
-                    .shadow(color: Color.black.opacity(0.04), radius: 1, x: 0, y: 1)
-            )
-            .padding(.horizontal, 16)
-            .padding(.vertical, 6)
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: segmentedSelection)
             
             // Show either recent or pinned based on selection
             if segmentedSelection == 0 {
@@ -182,16 +185,16 @@ struct ClipboardView: View {
             footerView
         }
         .frame(width: 320, height: 400)
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSelectMode)
     }
     
     private var headerView: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 4) {
             HStack(alignment: .center) {
-                Text("Clipboard History")
+                Text("Clippy")
                     .font(.headline)
                     .fontWeight(.semibold)
-                
-                Spacer()
+                    .frame(maxWidth: .infinity, alignment: .center)
                 
                 // Cancel button - only shown when in select mode
                 if isSelectMode {
@@ -201,27 +204,27 @@ struct ClipboardView: View {
                             selectedItems.removeAll()
                         }
                     }) {
-                        HStack(spacing: 6) {
+                        HStack(spacing: 4) {
                             Image(systemName: "xmark")
-                                .font(.system(size: 12, weight: .medium))
-                                .frame(width: 14, height: 14)
+                                .font(.system(size: 10, weight: .medium))
+                                .frame(width: 12, height: 12)
                             Text("Cancel")
-                                .font(.system(size: 13, weight: .medium))
+                                .font(.system(size: 11, weight: .medium))
                         }
                         .foregroundColor(.secondary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
                         .background(
-                            RoundedRectangle(cornerRadius: 14)
+                            RoundedRectangle(cornerRadius: 10)
                                 .fill(Color.secondary.opacity(0.08))
                         )
                         .overlay(
-                            RoundedRectangle(cornerRadius: 14)
+                            RoundedRectangle(cornerRadius: 10)
                                 .stroke(Color.secondary.opacity(0.2), lineWidth: 0.5)
                         )
                     }
                     .buttonStyle(BorderlessButtonStyle())
-                    .transition(.move(edge: .trailing).combined(with: .opacity))
+                    .transition(.opacity)
                 }
             }
             .padding(.horizontal, 16)
@@ -245,12 +248,12 @@ struct ClipboardView: View {
 
             Divider()
                 .padding(.horizontal, 12)
-                .padding(.top, 2)
+                .padding(.top, 1)
         }
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSelectMode)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showCategoryBar)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Clipboard History")
+        .accessibilityLabel("Clippy")
     }
     
     // Category filter bar
