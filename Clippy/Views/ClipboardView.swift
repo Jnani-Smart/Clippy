@@ -2,6 +2,7 @@ import SwiftUI
 import CoreGraphics
 import Combine
 import UniformTypeIdentifiers
+import Quartz
 
 // Enhanced visual effect view with modern styling
 struct VisualEffectView: NSViewRepresentable {
@@ -55,6 +56,8 @@ struct ClipboardView: View {
     @State private var showCategoryBar = false
     @State private var isSelectMode = false
     @State private var selectedItems: Set<UUID> = []
+    @State private var quickLookURL: URL? = nil
+    @State private var showQuickLook = false
     
     // Add the timeAgo function right here, before it's used
     private func timeAgo(from date: Date) -> String {
@@ -138,6 +141,56 @@ struct ClipboardView: View {
         .sheet(isPresented: $showSettings) {
             SettingsView(isPresented: $showSettings)
                 .environmentObject(clipboardManager)
+        }
+        .sheet(isPresented: $showQuickLook) {
+            if let url = quickLookURL {
+                VStack(spacing: 0) {
+                    // Custom header with close button
+                    HStack {
+                        Text("Quick Look")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        Spacer()
+                        
+                        Button(action: {
+                            showQuickLook = false
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title2)
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .keyboardShortcut(.escape, modifiers: [])
+                    }
+                    .padding()
+                    .background(Color(NSColor.windowBackgroundColor))
+                    
+                    // Quick Look content with fallback
+                    ZStack {
+                        QuickLookView(url: url)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        
+                        // Fallback message if Quick Look fails
+                        VStack {
+                            Image(systemName: "doc.text.magnifyingglass")
+                                .font(.system(size: 48))
+                                .foregroundColor(.secondary)
+                            
+                            Text("Preview not available")
+                                .font(.title2)
+                                .foregroundColor(.secondary)
+                            
+                            Text("File: \(url.lastPathComponent)")
+                                .font(.caption)
+                                .foregroundColor(Color(.tertiaryLabelColor))
+                        }
+                        .opacity(0) // Hidden by default, Quick Look will show content
+                    }
+                }
+                .frame(minWidth: 700, minHeight: 500)
+                .background(Color(NSColor.windowBackgroundColor))
+            }
         }
         // Add keyboard shortcut to close with ESC key
         .onKeyPress(.escape) {
@@ -526,6 +579,20 @@ struct ClipboardView: View {
                 }
             }
             
+            // Quick Look option for supported types
+            if canShowQuickLook(for: item) {
+                Button(action: {
+                    showQuickLook(for: item)
+                }) {
+                    Label {
+                        Text("Quick Look")
+                    } icon: {
+                        Image(systemName: "eye")
+                            .symbolRenderingMode(.hierarchical)
+                    }
+                }
+            }
+            
             Divider()
             
             // Select option to enter selection mode
@@ -880,6 +947,117 @@ struct ClipboardView: View {
         isSelectMode = false
     }
     
+    // MARK: - Quick Look functionality
+    
+    private func canShowQuickLook(for item: ClipboardItem) -> Bool {
+        switch item.type {
+        case .image:
+            return item.imageData != nil
+        case .url:
+            return item.url != nil
+        case .text:
+            return item.text != nil && !item.text!.isEmpty
+        }
+    }
+    
+    private func showQuickLook(for item: ClipboardItem) {
+        switch item.type {
+        case .image:
+            showQuickLookForImage(item)
+        case .url:
+            if let url = item.url {
+                showQuickLookForURL(url)
+            }
+        case .text:
+            if let filePath = extractFilePath(from: item.text) {
+                showQuickLookForURL(URL(fileURLWithPath: filePath))
+            } else {
+                // For regular text, create a temporary text file to preview
+                showQuickLookForText(item)
+            }
+        }
+    }
+    
+    private func showQuickLookForImage(_ item: ClipboardItem) {
+        guard let imageData = item.imageData else { return }
+        
+        // Create a temporary file for the image
+        let tempDir = FileManager.default.temporaryDirectory
+        let tempFile = tempDir.appendingPathComponent("quicklook_image_\(UUID().uuidString).png")
+        
+        do {
+            try imageData.write(to: tempFile)
+            quickLookURL = tempFile
+            showQuickLook = true
+        } catch {
+            print("Error creating temporary file for Quick Look: \(error)")
+        }
+    }
+    
+    private func showQuickLookForURL(_ url: URL) {
+        quickLookURL = url
+        showQuickLook = true
+    }
+    
+    private func showQuickLookForText(_ item: ClipboardItem) {
+        guard let text = item.text else { return }
+        
+        // Create a temporary text file
+        let tempDir = FileManager.default.temporaryDirectory
+        let tempFile = tempDir.appendingPathComponent("quicklook_text_\(UUID().uuidString).txt")
+        
+        do {
+            try text.write(to: tempFile, atomically: true, encoding: .utf8)
+            quickLookURL = tempFile
+            showQuickLook = true
+        } catch {
+            print("Error creating temporary text file for Quick Look: \(error)")
+        }
+    }
+    
+    private func isPreviewableURL(_ url: URL) -> Bool {
+        let previewableExtensions = ["pdf", "doc", "docx", "txt", "rtf", "jpg", "jpeg", "png", "gif", "mp4", "mov", "mp3", "wav"]
+        return previewableExtensions.contains(url.pathExtension.lowercased())
+    }
+    
+    private func containsFilePath(_ text: String?) -> Bool {
+        guard let text = text else { return false }
+        
+        // Check if the text looks like a file path
+        let filePathPattern = #"^(/[^/\0]+)+/?$|^~/[^/\0]+(/[^/\0]+)*/?$|^[a-zA-Z]:\\.*$"#
+        let regex = try? NSRegularExpression(pattern: filePathPattern, options: [])
+        let range = NSRange(location: 0, length: text.count)
+        
+        if let match = regex?.firstMatch(in: text, options: [], range: range) {
+            let filePath = String(text[Range(match.range, in: text)!])
+            return FileManager.default.fileExists(atPath: filePath)
+        }
+        
+        return false
+    }
+    
+    private func extractFilePath(from text: String?) -> String? {
+        guard let text = text, containsFilePath(text) else { return nil }
+        
+        // Extract the file path from text
+        let filePathPattern = #"^(/[^/\0]+)+/?$|^~/[^/\0]+(/[^/\0]+)*/?$|^[a-zA-Z]:\\.*$"#
+        let regex = try? NSRegularExpression(pattern: filePathPattern, options: [])
+        let range = NSRange(location: 0, length: text.count)
+        
+        if let match = regex?.firstMatch(in: text, options: [], range: range) {
+            let filePath = String(text[Range(match.range, in: text)!])
+            
+            // Expand tilde if present
+            if filePath.hasPrefix("~/") {
+                return NSString(string: filePath).expandingTildeInPath
+            }
+            
+            return filePath
+        }
+        
+        return nil
+    }
+    
     // Function to save image with standard save panel
     private func saveImage(_ item: ClipboardItem) {
         guard let imageData = item.imageData, let image = NSImage(data: imageData) else { return }
@@ -902,6 +1080,38 @@ struct ClipboardView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Quick Look View
+struct QuickLookView: NSViewRepresentable {
+    let url: URL
+    
+    func makeNSView(context: Context) -> NSView {
+        let containerView = NSView()
+        let previewView = QLPreviewView()
+        
+        // Configure the preview view
+        previewView.previewItem = url as QLPreviewItem
+        previewView.shouldCloseWithWindow = false
+        previewView.autoresizingMask = [.width, .height]
+        
+        // Add the preview view to container
+        containerView.addSubview(previewView)
+        previewView.frame = containerView.bounds
+        
+        return containerView
+    }
+    
+    func updateNSView(_ nsView: NSView, context: Context) {
+        guard let previewView = nsView.subviews.first as? QLPreviewView else { return }
+        
+        if previewView.previewItem?.previewItemURL != url {
+            previewView.previewItem = url as QLPreviewItem
+        }
+        
+        // Ensure proper frame
+        previewView.frame = nsView.bounds
     }
 }
 
