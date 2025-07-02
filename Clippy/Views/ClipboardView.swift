@@ -796,8 +796,9 @@ struct ClipboardView: View {
                                 ))
                         }
                     }
-                    .padding(.top, 3)
-                    .padding(.bottom, 3)
+                    .padding(.top, 6)
+                    .padding(.bottom, 8)
+                    .padding(.horizontal, 8)
                     .animation(.spring(response: 0.25, dampingFraction: 0.75), value: filteredItems.map { $0.id })
                 }
             }
