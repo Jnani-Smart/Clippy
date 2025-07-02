@@ -523,14 +523,14 @@ struct SettingsView: View {
                             }
                         }
                         
-                        // Show a warning when both are hidden
+                        // Show a warning when both are hidden but allow it
                         if hideMenuBarIcon && hideDockIcon {
                             HStack {
                                 Image(systemName: "exclamationmark.triangle.fill")
                                     .foregroundColor(.orange)
                                 Text("App is only accessible via keyboard shortcut when both icons are hidden.")
                                     .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(.orange)
                             }
                             .padding(.top, 8)
                         }

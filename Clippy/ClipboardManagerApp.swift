@@ -67,19 +67,35 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
             NSApp.applicationIconImage = appIcon
         }
         
-        // Save the default setting for dock icon (hidden)
-        UserDefaults.standard.set(true, forKey: "hideDockIcon")
+        // Initialize persistent settings if not already set
+        if UserDefaults.standard.object(forKey: "hideDockIcon") == nil {
+            UserDefaults.standard.set(true, forKey: "hideDockIcon")
+        }
         
-        // Hide dock icon by default - try multiple approaches to ensure it works consistently
-        // Set activation policy immediately
-        NSApp.setActivationPolicy(.accessory)
+        // Apply dock icon visibility setting
+        let shouldHideDockIcon = UserDefaults.standard.bool(forKey: "hideDockIcon")
+        updateDockIconVisibility(hidden: shouldHideDockIcon)
         
-        // Also apply it after a small delay to ensure it takes effect
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            // Force applying the activation policy change
-            NSApp.setActivationPolicy(.prohibited)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                NSApp.setActivationPolicy(.accessory)
+        // Make sure to properly apply settings with a delay to ensure they take effect
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            // Double-check dock icon setting
+            let shouldHideDockIcon = UserDefaults.standard.bool(forKey: "hideDockIcon")
+            if shouldHideDockIcon && NSApp.activationPolicy() != .prohibited {
+                self.updateDockIconVisibility(hidden: true)
+            }
+            
+            // Double-check menu bar icon setting
+            let shouldHideMenuBarIcon = UserDefaults.standard.bool(forKey: "hideMenuBarIcon") 
+            if shouldHideMenuBarIcon && self.statusItem != nil {
+                self.updateStatusBarVisibility()
+            } else if !shouldHideMenuBarIcon && self.statusItem == nil {
+                self.updateStatusBarVisibility()
+            }
+            
+            // Ensure both can be hidden simultaneously if needed
+            if shouldHideDockIcon && shouldHideMenuBarIcon {
+                // Let both be hidden - no override
+                print("Both dock and menu bar icons are hidden - app is accessible via keyboard shortcut only")
             }
         }
         
@@ -1034,41 +1050,98 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
     func updateStatusBarVisibility() {
         let hideMenuBarIcon = UserDefaults.standard.bool(forKey: "hideMenuBarIcon")
         
-        if hideMenuBarIcon {
-            // Remove the status item if it exists
-            if statusItem != nil {
-                NSStatusBar.system.removeStatusItem(statusItem!)
-                statusItem = nil
+        // Store the setting
+        UserDefaults.standard.set(hideMenuBarIcon, forKey: "hideMenuBarIcon")
+        
+        DispatchQueue.main.async {
+            if hideMenuBarIcon {
+                // Remove the status item if it exists
+                if self.statusItem != nil {
+                    NSStatusBar.system.removeStatusItem(self.statusItem!)
+                    self.statusItem = nil
+                    
+                    // Double-check the removal was successful
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        // If somehow the status item is still present, force remove it again
+                        if self.statusItem != nil {
+                            print("First attempt to remove menu bar icon failed, retrying...")
+                            NSStatusBar.system.removeStatusItem(self.statusItem!)
+                            self.statusItem = nil
+                        }
+                    }
+                }
+            } else if self.statusItem == nil {
+                // Create the status item if it doesn't exist
+                self.setupStatusBarItem()
+                
+                // Verify it was created successfully
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    if self.statusItem == nil {
+                        print("First attempt to create menu bar icon failed, retrying...")
+                        self.setupStatusBarItem()
+                    }
+                }
             }
-        } else if statusItem == nil {
-            // Create the status item if it doesn't exist
-            setupStatusBarItem()
         }
     }
     
     // Add method to update dock icon visibility
     private func updateDockIconVisibility(hidden: Bool) {
+        // Store the setting first
+        UserDefaults.standard.set(hidden, forKey: "hideDockIcon")
+        
         DispatchQueue.main.async {
             if hidden {
-                // Hide the dock icon
+                // The reliable way to completely hide the dock icon:
+                // First set to accessory (reduces visibility)
                 NSApp.setActivationPolicy(.accessory)
                 
-                // Force refresh activation policy after a short delay
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    let _ = NSApp.activationPolicy()
+                // Then after a tiny delay, set to prohibited (completely hides)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                     NSApp.setActivationPolicy(.prohibited)
+                    
+                    // Verify the setting took effect
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        NSApp.setActivationPolicy(.accessory)
+                        // If somehow the activation policy isn't prohibited (which can happen),
+                        // try again with a different approach
+                        if NSApp.activationPolicy() != .prohibited {
+                            print("First attempt to hide dock icon failed, retrying...")
+                            
+                            // Try more aggressively with two-step approach
+                            NSApp.setActivationPolicy(.accessory)
+                            
+                            // Process events to ensure the first change is registered
+                            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.05))
+                            
+                            NSApp.setActivationPolicy(.prohibited)
+                            
+                            // Force process events to apply the change
+                            NSApp.activate(ignoringOtherApps: false)
+                            let _ = NSApp.windows // Force update window list
+                            
+                            // Schedule another check to make triple sure
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                if NSApp.activationPolicy() != .prohibited && UserDefaults.standard.bool(forKey: "hideDockIcon") {
+                                    print("Third attempt to hide dock icon")
+                                    NSApp.setActivationPolicy(.prohibited)
+                                }
+                            }
+                        }
                     }
                 }
             } else {
-                // Show the dock icon
+                // Show the dock icon - set to regular
                 NSApp.setActivationPolicy(.regular)
                 
-                // Force refresh window state
-                if let window = NSApp.windows.first {
-                    window.orderFront(nil)
-                    window.orderOut(nil)
+                // Ensure windows are properly managed
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    // Force the icon to appear by activating the app
+                    NSApp.activate(ignoringOtherApps: true)
+                    
+                    // Update any windows if needed
+                    if let window = NSApp.windows.first(where: { $0.isVisible }) {
+                        window.orderFront(nil)
+                    }
                 }
             }
         }
