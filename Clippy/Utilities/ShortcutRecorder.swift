@@ -44,7 +44,7 @@ struct ShortcutRecorder: View {
             .help(isRecording ? "Cancel recording" : "Record shortcut")
             
             if isRecording {
-                Text("Press keys...")
+                Text("")
                     .foregroundColor(.secondary)
                     .onAppear {
                         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
