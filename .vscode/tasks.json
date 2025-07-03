@@ -10,6 +10,14 @@
 			"problemMatcher": [
 				"$gcc"
 			]
+		},
+		{
+			"label": "Fix App Icon and Build",
+			"type": "shell",
+			"command": "/Users/jnanismart/Clippy/fix_icon.sh",
+			"group": "build",
+			"isBackground": false,
+			"problemMatcher": []
 		}
 	]
 }

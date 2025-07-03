@@ -915,10 +915,26 @@ struct SettingsView: View {
                 VisionOSGroupBox(title: "About Clippy") {
                     VStack(alignment: .leading, spacing: 16) {
                         HStack {
-                            Image(nsImage: NSImage(named: "AppIcon") ?? NSImage())
-                                .resizable()
-                                .frame(width: 64, height: 64)
-                                .cornerRadius(12)
+                            // Prioritize loading from the AppIcon.icns file for the most up-to-date icon
+                            if let iconURL = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
+                               let iconImage = NSImage(contentsOf: iconURL) {
+                                Image(nsImage: iconImage)
+                                    .resizable()
+                                    .frame(width: 64, height: 64)
+                                    .cornerRadius(12)
+                            } else if let appIcon = NSImage(named: NSImage.applicationIconName) {
+                                // Try to get the current application icon
+                                Image(nsImage: appIcon)
+                                    .resizable()
+                                    .frame(width: 64, height: 64)
+                                    .cornerRadius(12)
+                            } else {
+                                // Last resort fallback
+                                Image(nsImage: NSImage(named: "AppIcon") ?? NSImage())
+                                    .resizable()
+                                    .frame(width: 64, height: 64)
+                                    .cornerRadius(12)
+                            }
                             
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("Clippy")

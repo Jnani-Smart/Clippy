@@ -5,6 +5,22 @@ All notable changes to Clippy will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2025-07-03
+
+### Added
+- New app icon with improved high-resolution assets
+- More compact selection toolbar in clipboard view
+- Optimized About section in Settings to always show the latest icon
+
+### Changed
+- Updated all icon assets throughout the app
+- Improved icon loading in the About section of Settings
+- Streamlined UI components for better alignment and spacing
+
+### Fixed
+- Fixed inconsistencies with app icon appearance in various contexts
+- Resolved issues with icon caching in macOS
+
 ## [1.5.0] - 2024-09-20
 
 ### Added

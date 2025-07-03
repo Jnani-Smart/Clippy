@@ -9,6 +9,6 @@
 	<key>NSAppleEventsUsageDescription</key>
 	<string>This app requires access to monitor keyboard shortcuts.</string>
 	<key>CFBundleIconFile</key>
-	<string>AppIcon.icns</string>
+	<string>AppIcon</string>
 </dict>
 </plist>

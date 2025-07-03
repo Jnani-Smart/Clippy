@@ -1,26 +1,32 @@
 # Upcoming Releases
 
-## v1.4.0 (Planned)
+## v1.7.0 (Planned)
 
 ### Features
 - Full Markdown support with preview
 - Intelligent content suggestions
-- Apple Silicon optimizations
 - Synchronization between multiple Macs (optional)
 - Custom themes and appearance options
+- Enhanced keyboard shortcuts for power users
 
 ### Bug Fixes
 - To be determined based on user feedback
 
 ## Future Releases
 
-### v1.5.0
+### v1.8.0
 - Multi-language support
 - Advanced regular expression search
 - Scriptable automation API
 - Command palette for keyboard power users
 
 ## Completed Releases
+
+### v1.6.0 (July 2025)
+- New app icon with improved high-resolution assets
+- More compact selection toolbar in clipboard view
+- Optimized icon handling throughout the application
+- UI component improvements and alignment fixes
 
 ### v1.3.0 (March 2024)
 - Category-based filtering system

@@ -1,8 +1,32 @@
-# Clippy v1.5.0 Release Notes
+# Clippy v1.6.0 Release Notes
 
 ## New Features
 
-### VisionOS-Style Interface
+### New App Icon
+- **Completely refreshed app icon** with improved high-resolution assets
+- **Consistent icon appearance** across all macOS contexts
+- **Enhanced asset management** throughout the application
+
+### UI Improvements
+- **More compact selection toolbar** in clipboard view
+- **Improved alignment** of UI components
+- **Enhanced visual consistency** across the app
+
+### Technical Improvements
+- **Optimized icon loading** in the About section
+- **Improved handling of macOS icon caches**
+- **Updated asset catalog** with consistent high-resolution assets
+- **Better resource management** for visual elements
+
+## Bug Fixes
+- Fixed inconsistencies with app icon appearance in various contexts
+- Resolved issues with icon caching in macOS
+- Improved reliability of app icon updates
+- Enhanced user experience with consistent visuals
+
+# Previous Release: Clippy v1.5.0
+
+## VisionOS-Style Interface
 - **Modern Glass Effect UI** with dynamic blur and subtle shadows
 - **Enhanced Visual Effects** throughout the app with VisionOS-inspired design
 - **Improved Animations** with physics-based interactions and smooth transitions
