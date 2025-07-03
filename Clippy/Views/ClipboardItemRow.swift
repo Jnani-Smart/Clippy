@@ -28,28 +28,31 @@ struct ClipboardItemRow: View {
             )
             .scaleEffect(isHovered ? 1.01 : 1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHovered)
+            .frame(maxWidth: .infinity, alignment: .leading) // Ensure consistent alignment
     }
     
-    // Main content structure
+    // Main content structure with consistent alignment
     private var mainContent: some View {
         HStack(alignment: .top, spacing: 8) {
-            // Icon column with simple styling
+            // Icon column with consistent positioning
             getTypeIcon()
                 .font(.system(size: 14))
                 .foregroundColor(getIconColor())
                 .frame(width: 18, height: 18)
                 .padding(.top, 2)
             
-            // Main content column
+            // Main content column with consistent spacing
             VStack(alignment: .leading, spacing: 4) {
                 contentPreview
                 
                 metadataRow
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
     
-    // Metadata row at the bottom
+    // Metadata row at the bottom with consistent alignment
     private var metadataRow: some View {
         HStack(spacing: 10) {
             // Simple timestamp without icon
@@ -88,6 +91,7 @@ struct ClipboardItemRow: View {
             }
         }
         .padding(.top, 2)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
     
     // Background shape
