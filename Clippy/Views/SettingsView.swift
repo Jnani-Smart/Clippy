@@ -205,18 +205,37 @@ struct SettingsView: View {
         isCheckingForUpdates = true
         
         updateStatusMessage = "Checking for updates..."
+        print("Current app version: \(appVersion)")
         
         // Configure your GitHub repository information here
-        let owner = "jnanismart" // Replace with your GitHub username
+        let owner = "Jnani-Smart" // Updated with correct GitHub username (with dash)
         let repo = "Clippy" // Replace with your repository name
         
-        let url = URL(string: "https://api.github.com/repos/\(owner)/\(repo)/releases/latest")!
+        // Changed to get all releases instead of just the latest to ensure we find the newest one
+        let urlString = "https://api.github.com/repos/\(owner)/\(repo)/releases"
+        print("Checking for updates at: \(urlString)")
+        
+        guard let url = URL(string: urlString) else {
+            updateStatusMessage = "Error: Invalid URL"
+            isCheckingForUpdates = false
+            return
+        }
         
         // Create a version-specific URLRequest with appropriate headers
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
         request.setValue("Clippy-App/\(appVersion)", forHTTPHeaderField: "User-Agent")
+        // Add a timestamp parameter to force bypass GitHub's cache
+        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        // Add a timestamp query parameter to bypass any server caching
+        if var urlComponents = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+            let timestampQueryItem = URLQueryItem(name: "timestamp", value: "\(Date().timeIntervalSince1970)")
+            urlComponents.queryItems = (urlComponents.queryItems ?? []) + [timestampQueryItem]
+            if let refreshedURL = urlComponents.url {
+                request.url = refreshedURL
+            }
+        }
         
         let task = URLSession.shared.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async { [self] in
@@ -248,30 +267,55 @@ struct SettingsView: View {
                 }
                 
                 do {
-                    let release = try JSONDecoder().decode(GitHubRelease.self, from: data)
+                    // Changed to decode an array of releases
+                    let releases = try JSONDecoder().decode([GitHubRelease].self, from: data)
                     
-                    // Clean up version numbers for comparison
-                    let latestVersion = release.tagName.replacingOccurrences(of: "v", with: "")
+                    guard !releases.isEmpty else {
+                        self.updateStatusMessage = "No releases found on GitHub"
+                        return
+                    }
+                    
+                    // Sort releases by version number (highest/newest first)
+                    let sortedReleases = releases.sorted { (release1, release2) -> Bool in
+                        return self.isNewerVersion(release1.tagName, than: release2.tagName)
+                    }
+                    
+                    // Get the newest release
+                    guard let newestRelease = sortedReleases.first else {
+                        self.updateStatusMessage = "Error: Could not determine newest release"
+                        return
+                    }
+                    
+                    // Log the tag received from GitHub
+                    print("GitHub newest tag: \(newestRelease.tagName), Current app version: \(self.appVersion)")
+                    print("All found tags: \(releases.map { $0.tagName }.joined(separator: ", "))")
+                    
+                    // Use our improved helper function for cleaning version strings
+                    let latestVersion = newestRelease.tagName
                     let currentVersion = self.appVersion
                     
-                    // Simple version comparison (this can be enhanced for semantic versioning)
+                    // Use the improved version comparison
                     if self.isNewerVersion(latestVersion, than: currentVersion) {
                         let formatter = DateFormatter()
-                        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
-                        formatter.timeZone = TimeZone(abbreviation: "UTC")
-                        formatter.locale = Locale(identifier: "en_US_POSIX")
+                        // Create date formatter for parsing GitHub date format
+                        let dateFormatter = DateFormatter()
+                        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
+                        dateFormatter.timeZone = TimeZone(abbreviation: "UTC")
+                        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
                         
                         var publishedDate = "recently"
-                        if let date = formatter.date(from: release.publishedAt) {
+                        if let date = dateFormatter.date(from: newestRelease.publishedAt) {
                             let displayFormatter = DateFormatter()
                             displayFormatter.dateStyle = .medium
                             publishedDate = displayFormatter.string(from: date)
                         }
                         
-                        self.updateStatusMessage = "New version \(latestVersion) available (released \(publishedDate)).\nVisit GitHub to download."
+                        // Extract clean version strings for better display
+                        let cleanLatestVersion = cleanVersionString(latestVersion)
+                        self.updateStatusMessage = "New version \(cleanLatestVersion) available (released \(publishedDate)).\nVisit GitHub to download."
                         
                         // Create a clickable link to the release
-                        self.releaseURL = URL(string: release.htmlUrl)
+                        self.releaseURL = URL(string: newestRelease.htmlUrl)
                     } else {
                         self.updateStatusMessage = "You're using the latest version (\(currentVersion))."
                     }
@@ -286,8 +330,15 @@ struct SettingsView: View {
     
     // Helper method to compare version strings
     private func isNewerVersion(_ version1: String, than version2: String) -> Bool {
-        let components1 = version1.split(separator: ".").compactMap { Int($0) }
-        let components2 = version2.split(separator: ".").compactMap { Int($0) }
+        // Enhanced cleaning to handle more GitHub tag formats
+        let cleanVersion1 = cleanVersionString(version1)
+        let cleanVersion2 = cleanVersionString(version2)
+        
+        // Print versions for debugging
+        print("Comparing versions: \(cleanVersion1) vs \(cleanVersion2)")
+        
+        let components1 = cleanVersion1.split(separator: ".").compactMap { Int($0) }
+        let components2 = cleanVersion2.split(separator: ".").compactMap { Int($0) }
         
         // Pad shorter arrays with zeros
         let maxLength = max(components1.count, components2.count)
@@ -305,6 +356,19 @@ struct SettingsView: View {
         
         // Versions are identical
         return false
+    }
+    
+    // Helper function to clean version strings
+    private func cleanVersionString(_ version: String) -> String {
+        // Remove "v" prefix if present
+        var cleanVersion = version.replacingOccurrences(of: "v", with: "")
+        
+        // Extract just the semantic version part (e.g., "1.6.0" from "1.6.0-beta.1")
+        if let match = cleanVersion.range(of: #"^\d+(\.\d+)*"#, options: .regularExpression) {
+            cleanVersion = String(cleanVersion[match])
+        }
+        
+        return cleanVersion
     }
     
     @AppStorage("enableCategories") private var enableCategories = false
