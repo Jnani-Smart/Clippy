@@ -835,6 +835,9 @@ struct SettingsView: View {
                                             object: nil,
                                             userInfo: ["keyCombo": combo]
                                         )
+                                        
+                                        // Relaunch the app to apply changes
+                                        relaunchApp()
                                     }
                                 }
                         }
@@ -850,6 +853,16 @@ struct SettingsView: View {
             .padding(.horizontal, 24)
             .padding(.vertical, 20)
         }
+    }
+    
+    private func relaunchApp() {
+        let url = URL(fileURLWithPath: Bundle.main.resourcePath!)
+        let path = url.deletingLastPathComponent().deletingLastPathComponent().absoluteString
+        let task = Process()
+        task.launchPath = "/usr/bin/open"
+        task.arguments = [path]
+        task.launch()
+        exit(0)
     }
     
     // Data management settings with visionOS-inspired styling
