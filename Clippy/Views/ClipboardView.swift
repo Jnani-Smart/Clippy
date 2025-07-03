@@ -289,7 +289,11 @@ struct ClipboardView: View {
             // Selection toolbar when in select mode
             if isSelectMode {
                 selectionToolbar
-                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .padding(.horizontal, 16)
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .top).combined(with: .opacity),
+                        removal: .move(edge: .top).combined(with: .opacity)
+                    ))
             }
 
             // Category filter bar with visibility control
@@ -837,10 +841,10 @@ struct ClipboardView: View {
         .animation(.spring(response: 0.2, dampingFraction: 0.7), value: segmentedSelection)
     }
     
-    // Selection toolbar with refined actions and compact spacing
+    // Selection toolbar with compact design for more clipboard item space
     private var selectionToolbar: some View {
-        HStack(alignment: .center, spacing: 8) {
-            // Select All/None button with better sizing
+        HStack(alignment: .center, spacing: 0) {
+            // Select All/None button with compact sizing
             Button(action: {
                 withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
                     if selectedItems.count == filteredItems.count {
@@ -853,39 +857,41 @@ struct ClipboardView: View {
                 HStack(spacing: 3) {
                     Image(systemName: selectedItems.count == filteredItems.count ? "minus.circle.fill" : "plus.circle.fill")
                         .font(.system(size: 10, weight: .medium))
-                        .frame(width: 10, height: 10)
+                        .frame(width: 12, height: 12)
                     Text(selectedItems.count == filteredItems.count ? "None" : "All")
                         .font(.system(size: 11, weight: .medium))
                 }
                 .foregroundColor(.accentColor)
                 .padding(.horizontal, 6)
-                .padding(.vertical, 4)
+                .padding(.vertical, 3)
                 .background(
-                    RoundedRectangle(cornerRadius: 8)
+                    RoundedRectangle(cornerRadius: 6)
                         .fill(Color.accentColor.opacity(0.08))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 8)
+                            RoundedRectangle(cornerRadius: 6)
                                 .stroke(Color.accentColor.opacity(0.2), lineWidth: 0.5)
                         )
                 )
             }
             .buttonStyle(BorderlessButtonStyle())
+            .padding(.leading, 8)
             
             Spacer()
             
             // Selection count with compact design
-            VStack(spacing: 1) {
+            VStack(spacing: 0) {
                 Text("\(selectedItems.count)")
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
                     .foregroundColor(.primary)
                 Text("selected")
                     .font(.system(size: 9, weight: .medium))
                     .foregroundColor(.secondary)
             }
+            .frame(minWidth: 40)
             
             Spacer()
             
-            // Delete Selected button - single action button
+            // Delete Selected button with compact sizing
             Button(action: {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                     deleteSelectedItems()
@@ -894,18 +900,18 @@ struct ClipboardView: View {
                 HStack(spacing: 3) {
                     Image(systemName: "trash.fill")
                         .font(.system(size: 10, weight: .medium))
-                        .frame(width: 10, height: 10)
+                        .frame(width: 12, height: 12)
                     Text("Delete")
                         .font(.system(size: 11, weight: .medium))
                 }
                 .foregroundColor(.red)
                 .padding(.horizontal, 6)
-                .padding(.vertical, 4)
+                .padding(.vertical, 3)
                 .background(
-                    RoundedRectangle(cornerRadius: 8)
+                    RoundedRectangle(cornerRadius: 6)
                         .fill(Color.red.opacity(0.08))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 8)
+                            RoundedRectangle(cornerRadius: 6)
                                 .stroke(Color.red.opacity(0.2), lineWidth: 0.5)
                         )
                 )
@@ -913,19 +919,17 @@ struct ClipboardView: View {
             .buttonStyle(BorderlessButtonStyle())
             .disabled(selectedItems.isEmpty)
             .opacity(selectedItems.isEmpty ? 0.5 : 1.0)
+            .padding(.trailing, 8)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
+        .padding(.vertical, 4)
         .background(
-            RoundedRectangle(cornerRadius: 10)
+            RoundedRectangle(cornerRadius: 8)
                 .fill(Color.secondary.opacity(0.04))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 10)
+                    RoundedRectangle(cornerRadius: 8)
                         .stroke(Color.secondary.opacity(0.08), lineWidth: 0.5)
                 )
         )
-        .padding(.horizontal, 12)
-        .padding(.bottom, 3)
     }
     
     // Function to delete selected items using existing ClipboardManager methods
