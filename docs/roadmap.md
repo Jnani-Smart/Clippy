@@ -28,14 +28,14 @@
 - Optimized icon handling throughout the application
 - UI component improvements and alignment fixes
 
-### v1.3.0 (March 2024)
+### v1.3.0 (December 2024)
 - Category-based filtering system
 - Redesigned UI with improved interactions
 - Data management improvements
 - Enhanced search functionality
 - Performance optimizations
 
-### v1.1.0 (December 2023)
+### v1.1.0 (December 2024)
 - Enhanced UI with improved visual effects
 - Better keyboard shortcut management
 - Advanced clipboard item handling 

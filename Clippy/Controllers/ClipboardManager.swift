@@ -339,12 +339,14 @@ class ClipboardManager: ObservableObject {
             // For Handoff, we want to capture both image and URL if available
             if !imageProcessed || isHandoffContent {
                 var textProcessed = false
+                var urlProcessed = false
                 
                 if availableTypes.contains(.string) {
                     if let string = self.pasteboard.string(forType: .string) {
                         // Check if it's a URL
                         if let parsedURL = URL(string: string), parsedURL.scheme != nil {
                             self.addItem(url: parsedURL, isFromHandoff: isHandoffContent)
+                            urlProcessed = true
                         } else {
                             self.addItem(string, isFromHandoff: isHandoffContent)
                         }
@@ -353,16 +355,15 @@ class ClipboardManager: ObservableObject {
                 }
                 
                 // Also check for public.url type specifically (common in Handoff)
-                if !textProcessed || isHandoffContent {
-                    if availableTypes.contains(NSPasteboard.PasteboardType("public.url")) {
-                        if let urlData = self.pasteboard.data(forType: NSPasteboard.PasteboardType("public.url")),
-                           let urlString = String(data: urlData, encoding: .utf8),
-                           let parsedURL = URL(string: urlString) {
-                            #if DEBUG
-                            print("🔗 Processing Handoff URL from public.url: \(urlString)")
-                            #endif
-                            self.addItem(url: parsedURL, isFromHandoff: isHandoffContent)
-                        }
+                if !urlProcessed && availableTypes.contains(NSPasteboard.PasteboardType("public.url")) {
+                    if let urlData = self.pasteboard.data(forType: NSPasteboard.PasteboardType("public.url")),
+                       let urlString = String(data: urlData, encoding: .utf8),
+                       let parsedURL = URL(string: urlString) {
+                        #if DEBUG
+                        print("🔗 Processing Handoff URL from public.url: \(urlString)")
+                        #endif
+                        self.addItem(url: parsedURL, isFromHandoff: isHandoffContent)
+                        urlProcessed = true
                     }
                 }
                 
