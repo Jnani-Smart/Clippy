@@ -338,8 +338,8 @@ class ClipboardManager: ObservableObject {
             // Process text content if no image was processed or if this is Handoff (which might have both)
             // For Handoff, we want to capture both image and URL if available
             if !imageProcessed || isHandoffContent {
-                // If a file was already processed from Handoff, don't process text separately
-                if isHandoffContent && fileProcessed {
+                // If a file or image was already processed from Handoff, don't process text/URL separately
+                if isHandoffContent && (fileProcessed || imageProcessed) {
                     return
                 }
                 
