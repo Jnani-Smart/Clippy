@@ -58,6 +58,7 @@ struct ClipboardView: View {
     @State private var selectedItems: Set<UUID> = []
     @State private var quickLookURL: URL? = nil
     @State private var showQuickLook = false
+    @State private var keyEventMonitor: Any? = nil
     
     // Add the timeAgo function right here, before it's used
     private func timeAgo(from date: Date) -> String {
@@ -192,17 +193,33 @@ struct ClipboardView: View {
                 .background(Color(NSColor.windowBackgroundColor))
             }
         }
-        // Add keyboard shortcut to close with ESC key
-        .onKeyPress(.escape) {
-            // If in select mode, exit select mode instead of closing the window
-            if isSelectMode {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                    isSelectMode = false
-                    selectedItems.removeAll()
+        .onAppear {
+            keyEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                // Spacebar: keyCode 49
+                if event.keyCode == 49 {
+                    if let hoveredId = hoveredItemId, let item = filteredItems.first(where: { $0.id == hoveredId }), canShowQuickLook(for: item) {
+                        showQuickLook(for: item)
+                        return nil // Consume event
+                    }
                 }
-                return .handled
+                // Escape: keyCode 53 (for select mode exit)
+                if event.keyCode == 53 {
+                    if isSelectMode {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            isSelectMode = false
+                            selectedItems.removeAll()
+                        }
+                        return nil // Consume event
+                    }
+                }
+                return event
             }
-            return .ignored
+        }
+        .onDisappear {
+            if let monitor = keyEventMonitor {
+                NSEvent.removeMonitor(monitor)
+                keyEventMonitor = nil
+            }
         }
     }
     

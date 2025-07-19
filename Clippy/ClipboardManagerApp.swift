@@ -58,6 +58,10 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
     private var settingsWindow: NSPanel? // Track the settings window
     private var isShowingFloatingWindow = false
     
+    // Keys for saving window positions
+    private let floatingWindowPositionKey = "FloatingWindowPosition"
+    private let settingsWindowPositionKey = "SettingsWindowPosition"
+    
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Set app icon programmatically from asset catalog
         if let appIcon = NSImage(named: "AppIcon") {
@@ -547,6 +551,14 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         window.animator().alphaValue = 1.0
         window.makeKeyAndOrderFront(nil)
         
+        // Restore previous position if available
+        if let savedPosition = UserDefaults.standard.string(forKey: settingsWindowPositionKey) {
+            let point = NSPointFromString(savedPosition)
+            window.setFrameOrigin(point)
+        } else {
+            window.center()
+        }
+        
         // Save the reference
         settingsWindow = window
     }
@@ -994,6 +1006,20 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         window.animator().alphaValue = 1.0
         window.makeKeyAndOrderFront(nil)
         
+        // Restore previous position if available
+        if let savedPosition = UserDefaults.standard.string(forKey: floatingWindowPositionKey) {
+            let point = NSPointFromString(savedPosition)
+            window.setFrameOrigin(point)
+        } else {
+            window.center()
+            if let screenFrame = NSScreen.main?.visibleFrame {
+                window.setFrameOrigin(NSPoint(
+                    x: screenFrame.midX - window.frame.width / 2,
+                    y: screenFrame.midY - window.frame.height / 2 + 20
+                ))
+            }
+        }
+        
         floatingWindow = window
         
         // After window is fully set up, set the flag back to false with a small delay
@@ -1151,9 +1177,15 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
     func windowWillClose(_ notification: Notification) {
         if let closedWindow = notification.object as? NSPanel,
            closedWindow == floatingWindow {
+            // Save position
+            let pos = NSStringFromPoint(closedWindow.frame.origin)
+            UserDefaults.standard.set(pos, forKey: floatingWindowPositionKey)
             floatingWindow = nil
         } else if let closedWindow = notification.object as? NSPanel,
                   closedWindow == settingsWindow {
+            // Save position
+            let pos = NSStringFromPoint(closedWindow.frame.origin)
+            UserDefaults.standard.set(pos, forKey: settingsWindowPositionKey)
             settingsWindow = nil
         }
     }
@@ -1166,12 +1198,10 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
             if let closeButton = button as? CloseButtonWithHover, closeButton.isCloseInProgress {
                 return
             }
-            
             if let closeButton = button as? CloseButtonWithHover {
                 closeButton.isCloseInProgress = true
                 closeButton.isEnabled = false
             }
-            
             window = button.window
         } else if let windowObj = sender as? NSWindow {
             window = windowObj
@@ -1179,7 +1209,18 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
             // Try to find the settings or floating window
             window = self.settingsWindow ?? self.floatingWindow
         }
-        
+
+        // Save position before closing
+        if let window = window {
+            if window == self.settingsWindow {
+                let pos = NSStringFromPoint(window.frame.origin)
+                UserDefaults.standard.set(pos, forKey: settingsWindowPositionKey)
+            } else if window == self.floatingWindow {
+                let pos = NSStringFromPoint(window.frame.origin)
+                UserDefaults.standard.set(pos, forKey: floatingWindowPositionKey)
+            }
+        }
+
         // Animate fade-out
         if let window = window {
             NSAnimationContext.runAnimationGroup({ context in

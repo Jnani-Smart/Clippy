@@ -29,6 +29,24 @@ struct ClipboardItemRow: View {
             .scaleEffect(isHovered ? 1.01 : 1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHovered)
             .frame(maxWidth: .infinity, alignment: .leading) // Ensure consistent alignment
+            .onDrag {
+                switch item.type {
+                case .text:
+                    if let text = item.text {
+                        return NSItemProvider(object: text as NSString)
+                    }
+                case .url:
+                    if let url = item.url {
+                        return NSItemProvider(object: url as NSURL)
+                    }
+                case .image:
+                    if let imageData = item.imageData, let image = NSImage(data: imageData) {
+                        return NSItemProvider(object: image)
+                    }
+                }
+                // Fallback: provide preview string
+                return NSItemProvider(object: item.preview as NSString)
+            }
     }
     
     // Main content structure with consistent alignment
