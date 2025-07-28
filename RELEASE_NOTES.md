@@ -1,30 +1,31 @@
-# Clippy v1.6.0 Release Notes
+# Clippy v1.7.0 Release Notes
 
-## New Features
+## Major Enhancements
 
-### New App Icon
-- **Completely refreshed app icon** with improved high-resolution assets
-- **Consistent icon appearance** across all macOS contexts
-- **Enhanced asset management** throughout the application
+### Auto-Update System Improvements
+- **Automatic Notifications**: Auto-update notifications now show automatically during background checks (not just manual checks)
+- **Download-Only Approach**: Refined auto-update system to only download updates (manual installation for better security)
+- **Enhanced User Experience**: Users maintain full control over installation timing with no automatic system modifications
 
-### UI Improvements
-- **More compact selection toolbar** in clipboard view
-- **Improved alignment** of UI components
-- **Enhanced visual consistency** across the app
+### Quick Look Preview Feature
+- **Space Bar Preview**: Press space bar to preview clipboard items with native macOS Quick Look integration
+- **Smooth Animations**: Fast fade in/out animations (0.25s fade in, 0.2s fade out) with easeInOut timing
+- **Keyboard Controls**: Space and escape keys now close Quick Look preview
+- **Artifact-Free Initialization**: Completely fixed square artifact that appeared during preview initialization
 
-### Technical Improvements
-- **Optimized icon loading** in the About section
-- **Improved handling of macOS icon caches**
-- **Updated asset catalog** with consistent high-resolution assets
-- **Better resource management** for visual elements
+### Settings Window Enhancements
+- **Enhanced Visual Design**: Floating panel with macOS Finder-like translucency, rounded corners, and smooth animations
+- **Improved Window Management**: Settings window properly appears in current space without forcing to front of full screen apps
+- **Dock Integration**: Open clipboard menu directly from dock icon click
+- **Stability Improvements**: Fixed CloseButtonRepresentable crash on first open and empty space at top after first open
 
 ## Bug Fixes
-- Fixed inconsistencies with app icon appearance in various contexts
-- Resolved issues with icon caching in macOS
-- Improved reliability of app icon updates
-- Enhanced user experience with consistent visuals
+- Fixed settings window CloseButtonRepresentable crash on first open
+- Resolved empty space at top of settings window after first open
+- Eliminated square artifact in Quick Look preview initialization
+- Enhanced auto-update notification system to show alerts during automatic background checks
 
-# Previous Release: Clippy v1.5.0
+# Previous Release: Clippy v1.6.0
 
 ## VisionOS-Style Interface
 - **Modern Glass Effect UI** with dynamic blur and subtle shadows
