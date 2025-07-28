@@ -5,6 +5,27 @@ All notable changes to Clippy will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2025-07-28
+
+### Added
+- Auto-update notifications now show automatically during background checks (not just manual checks)
+- Quick Look preview for clipboard items with space bar support
+- Smooth fade animations for Quick Look preview window
+- Keyboard controls (space and escape) for Quick Look preview
+- Dock icon click functionality to open clipboard menu
+
+### Changed
+- Enhanced settings window with macOS Finder-like translucency, rounded corners, and smooth animations
+- Improved window focus management to appear in current space without forcing to front of full screen apps
+- Refined auto-update system to only download updates (manual installation)
+- Updated settings window behavior to redirect to existing window without forcing frontmost activation
+
+### Fixed
+- Settings window CloseButtonRepresentable crash on first open
+- Empty space at top of settings window after first open
+- Square artifact in Quick Look preview initialization
+- Auto-update notification system to show alerts during automatic background checks
+
 ## [1.6.0] - 2025-07-03
 
 ### Added
