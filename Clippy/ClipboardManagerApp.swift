@@ -14,6 +14,7 @@ struct ClipboardManagerApp: App {
                 if isAppDelegateInitialized {
                     SettingsView(isPresented: .constant(true))
                         .environmentObject(appDelegate.clipboardManager!)
+                        .environmentObject(appDelegate)
                 } else {
                     // Show a placeholder while initializing
                     Text("Loading settings...")
@@ -62,6 +63,14 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
     private let floatingWindowPositionKey = "FloatingWindowPosition"
     private let settingsWindowPositionKey = "SettingsWindowPosition"
     
+    func applicationDidBecomeActive(_ notification: Notification) {
+        // When the app becomes active (e.g., dock icon is clicked), show the floating window
+        // but only if the dock icon is visible (not hidden)
+        if NSApp.activationPolicy() == .regular {
+            showFloatingWindow()
+        }
+    }
+    
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Set app icon programmatically from asset catalog
         if let appIcon = NSImage(named: "AppIcon") {
@@ -90,15 +99,8 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
             
             // Double-check menu bar icon setting
             let shouldHideMenuBarIcon = UserDefaults.standard.bool(forKey: "hideMenuBarIcon") 
-            if shouldHideMenuBarIcon && self.statusItem != nil {
-                self.updateStatusBarVisibility()
-            } else if !shouldHideMenuBarIcon && self.statusItem == nil {
-                self.updateStatusBarVisibility()
-            }
-            
-            // Ensure both can be hidden simultaneously if needed
-            if shouldHideDockIcon && shouldHideMenuBarIcon {
-                // Let both be hidden - no override
+            if shouldHideMenuBarIcon {
+                self.statusItem?.button?.isHidden = true
                 print("Both dock and menu bar icons are hidden - app is accessible via keyboard shortcut only")
             }
         }
@@ -136,6 +138,7 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         popover.contentViewController = NSHostingController(
             rootView: ClipboardView(clipboardManager: clipboardManager!)
                 .environmentObject(clipboardManager!)
+                .environmentObject(self)
         )
         
         // Always create status bar item regardless of preference, since we're a menu bar app
@@ -207,6 +210,9 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         
         // Additional services setup
         setupServices()
+        
+        // Initialize AutoUpdater service
+        initializeAutoUpdater()
         
         // Show floating window automatically at startup
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
@@ -289,11 +295,13 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         // Debug print
         print("Opening settings window...")
         
-        // If settings window is already open, just bring it to front
+        // If settings window is already open, just redirect to it in its current space
         if let window = settingsWindow, window.isVisible {
-            print("Settings window already open, bringing to front")
+            print("Settings window already open, redirecting to it")
+            // Ensure the window is visible and active in its current space
             window.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
+            // Activate the app but don't force it to front of other apps
+            NSApp.activate(ignoringOtherApps: false)
             return
         }
         
@@ -315,8 +323,8 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         window.title = "Settings"
         window.isReleasedWhenClosed = false
         
-        // Make the window appear on top
-        window.level = .floating
+        // Make the window appear on top of all applications, including full screen apps
+        window.level = .statusBar
         
         // Make window appear with a nice animation
         window.animationBehavior = .utilityWindow
@@ -375,6 +383,7 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
                 }
             ))
             .environmentObject(clipboardManager!)
+            .environmentObject(self)
         )
         hostView.translatesAutoresizingMaskIntoConstraints = false
         
@@ -547,11 +556,7 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         // Ensure app is active and window is visible
         NSApp.activate(ignoringOtherApps: true)
         
-        // Finally show the window with animation
-        window.animator().alphaValue = 1.0
-        window.makeKeyAndOrderFront(nil)
-        
-        // Restore previous position if available
+        // Restore previous position if available BEFORE showing the window
         if let savedPosition = UserDefaults.standard.string(forKey: settingsWindowPositionKey) {
             let point = NSPointFromString(savedPosition)
             window.setFrameOrigin(point)
@@ -561,6 +566,10 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         
         // Save the reference
         settingsWindow = window
+        
+        // Finally show the window with animation
+        window.animator().alphaValue = 1.0
+        window.makeKeyAndOrderFront(nil)
     }
     
     @objc func quitApp() {
@@ -760,6 +769,7 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
                 // Wrap content view with key handler to ensure ESC is captured
                 ClipboardView(clipboardManager: clipboardManager!)
                     .environmentObject(clipboardManager!)
+                    .environmentObject(self)
                     .onExitCommand { [weak self] in
                         if let self = self, let window = self.floatingWindow {
                             self.fadeOutAndCloseWindow(window)
@@ -1248,6 +1258,22 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
             name: Notification.Name("HistoryCleared"),
             object: nil
         )
+    }
+    
+    // Initialize AutoUpdater service
+    private func initializeAutoUpdater() {
+        // Enable auto-update checking by default
+        let autoUpdater = AutoUpdater.shared
+        
+        // Load user preference for auto-updates (default to enabled)
+        let autoUpdateEnabled = UserDefaults.standard.object(forKey: "autoUpdateEnabled") as? Bool ?? true
+        
+        // Use Task to call the main actor method
+        Task { @MainActor in
+            autoUpdater.enableAutoCheck(autoUpdateEnabled)
+        }
+        
+        print("AutoUpdater initialized with auto-check: \(autoUpdateEnabled)")
     }
     
     // Handle app activation changes to adjust window behavior when Spotlight appears

@@ -46,8 +46,12 @@ struct CloseButtonRepresentable: NSViewRepresentable {
             ? NSColor.white.withAlphaComponent(0.3).cgColor
             : NSColor.black.withAlphaComponent(0.15).cgColor
         
-        // Create a simple close button instead of using CloseButtonWithHover
-        let closeButton = NSButton(frame: NSRect(origin: .zero, size: NSSize(width: 24, height: 24)))
+        // Use the existing CloseButtonWithHover class instead of custom implementation
+        let closeButton = CloseButtonWithHover(
+            frame: NSRect(origin: .zero, size: NSSize(width: 24, height: 24)),
+            normalColor: hoverNormalColor,
+            hoverColor: hoverActiveColor
+        )
         closeButton.title = "×"  // Set the title directly
         closeButton.font = NSFont.systemFont(ofSize: 16, weight: .medium)
         closeButton.isBordered = false
@@ -93,17 +97,6 @@ struct CloseButtonRepresentable: NSViewRepresentable {
         
         // Store reference to the button in coordinator
         context.coordinator.button = closeButton
-        context.coordinator.normalColor = hoverNormalColor
-        context.coordinator.hoverColor = hoverActiveColor
-        
-        // Set up tracking area directly on the coordinator
-        let trackingArea = NSTrackingArea(
-            rect: closeButton.bounds,
-            options: [.mouseEnteredAndExited, .activeInActiveApp],
-            owner: context.coordinator, // Use coordinator as owner
-            userInfo: nil
-        )
-        closeButton.addTrackingArea(trackingArea)
         
         return closeButton
     }
@@ -118,20 +111,11 @@ struct CloseButtonRepresentable: NSViewRepresentable {
     
     class Coordinator: NSObject {
         let onClose: () -> Void
-        var normalColor: CGColor?
-        var hoverColor: CGColor?
         weak var button: NSButton?
         var isCloseInProgress = false
         
         init(onClose: @escaping () -> Void) {
             self.onClose = onClose
-            self.normalColor = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-                ? NSColor.white.withAlphaComponent(0.15).cgColor
-                : NSColor.black.withAlphaComponent(0.08).cgColor
-                
-            self.hoverColor = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-                ? NSColor.white.withAlphaComponent(0.3).cgColor
-                : NSColor.black.withAlphaComponent(0.15).cgColor
         }
         
         @objc func closeButtonClicked(_ sender: NSButton) {
@@ -142,19 +126,6 @@ struct CloseButtonRepresentable: NSViewRepresentable {
             sender.isEnabled = false
             
             onClose()
-        }
-        
-        // Mouse event handlers for hover effect
-        @objc func mouseEntered(with event: NSEvent) {
-            guard let button = self.button,
-                  let bgLayer = button.layer?.sublayers?.first else { return }
-            bgLayer.backgroundColor = hoverColor
-        }
-        
-        @objc func mouseExited(with event: NSEvent) {
-            guard let button = self.button,
-                  let bgLayer = button.layer?.sublayers?.first else { return }
-            bgLayer.backgroundColor = normalColor
         }
     }
 }
@@ -196,180 +167,90 @@ struct SettingsView: View {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
     }()
     
-    @State private var isCheckingForUpdates = false
-    @State private var updateStatusMessage = ""
-    @State private var releaseURL: URL? = nil
+    // Auto-updater integration
+    @StateObject private var autoUpdater = AutoUpdater.shared
+    @AppStorage("autoUpdateEnabled") private var autoUpdateEnabled = true
     
     private func checkForUpdates() {
-        guard !isCheckingForUpdates else { return }
-        isCheckingForUpdates = true
-        
-        updateStatusMessage = "Checking for updates..."
-        print("Current app version: \(appVersion)")
-        
-        // Configure your GitHub repository information here
-        let owner = "Jnani-Smart" // Updated with correct GitHub username (with dash)
-        let repo = "Clippy" // Replace with your repository name
-        
-        // Changed to get all releases instead of just the latest to ensure we find the newest one
-        let urlString = "https://api.github.com/repos/\(owner)/\(repo)/releases"
-        print("Checking for updates at: \(urlString)")
-        
-        guard let url = URL(string: urlString) else {
-            updateStatusMessage = "Error: Invalid URL"
-            isCheckingForUpdates = false
-            return
+        Task {
+            await autoUpdater.checkForUpdates(silent: false)
         }
-        
-        // Create a version-specific URLRequest with appropriate headers
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
-        request.setValue("Clippy-App/\(appVersion)", forHTTPHeaderField: "User-Agent")
-        // Add a timestamp parameter to force bypass GitHub's cache
-        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
-        // Add a timestamp query parameter to bypass any server caching
-        if var urlComponents = URLComponents(url: url, resolvingAgainstBaseURL: false) {
-            let timestampQueryItem = URLQueryItem(name: "timestamp", value: "\(Date().timeIntervalSince1970)")
-            urlComponents.queryItems = (urlComponents.queryItems ?? []) + [timestampQueryItem]
-            if let refreshedURL = urlComponents.url {
-                request.url = refreshedURL
-            }
-        }
-        
-        let task = URLSession.shared.dataTask(with: request) { data, response, error in
-            DispatchQueue.main.async { [self] in
-                self.isCheckingForUpdates = false
-                
-                if let error = error {
-                    self.updateStatusMessage = "Error checking for updates: \(error.localizedDescription)"
-                    return
-                }
-                
-                guard let httpResponse = response as? HTTPURLResponse else {
-                    self.updateStatusMessage = "Error: Invalid response from server"
-                    return
-                }
-                
-                if httpResponse.statusCode == 404 {
-                    self.updateStatusMessage = "No releases found on GitHub"
-                    return
-                }
-                
-                if httpResponse.statusCode != 200 {
-                    self.updateStatusMessage = "Error: Server returned status code \(httpResponse.statusCode)"
-                    return
-                }
-                
-                guard let data = data else {
-                    self.updateStatusMessage = "Error: No data received"
-                    return
-                }
-                
-                do {
-                    // Changed to decode an array of releases
-                    let releases = try JSONDecoder().decode([GitHubRelease].self, from: data)
-                    
-                    guard !releases.isEmpty else {
-                        self.updateStatusMessage = "No releases found on GitHub"
-                        return
-                    }
-                    
-                    // Sort releases by version number (highest/newest first)
-                    let sortedReleases = releases.sorted { (release1, release2) -> Bool in
-                        return self.isNewerVersion(release1.tagName, than: release2.tagName)
-                    }
-                    
-                    // Get the newest release
-                    guard let newestRelease = sortedReleases.first else {
-                        self.updateStatusMessage = "Error: Could not determine newest release"
-                        return
-                    }
-                    
-                    // Log the tag received from GitHub
-                    print("GitHub newest tag: \(newestRelease.tagName), Current app version: \(self.appVersion)")
-                    print("All found tags: \(releases.map { $0.tagName }.joined(separator: ", "))")
-                    
-                    // Use our improved helper function for cleaning version strings
-                    let latestVersion = newestRelease.tagName
-                    let currentVersion = self.appVersion
-                    
-                    // Use the improved version comparison
-                    if self.isNewerVersion(latestVersion, than: currentVersion) {
-                        let formatter = DateFormatter()
-                        // Create date formatter for parsing GitHub date format
-                        let dateFormatter = DateFormatter()
-                        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
-                        dateFormatter.timeZone = TimeZone(abbreviation: "UTC")
-                        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-                        
-                        var publishedDate = "recently"
-                        if let date = dateFormatter.date(from: newestRelease.publishedAt) {
-                            let displayFormatter = DateFormatter()
-                            displayFormatter.dateStyle = .medium
-                            publishedDate = displayFormatter.string(from: date)
-                        }
-                        
-                        // Extract clean version strings for better display
-                        let cleanLatestVersion = cleanVersionString(latestVersion)
-                        self.updateStatusMessage = "New version \(cleanLatestVersion) available (released \(publishedDate)).\nVisit GitHub to download."
-                        
-                        // Create a clickable link to the release
-                        self.releaseURL = URL(string: newestRelease.htmlUrl)
-                    } else {
-                        self.updateStatusMessage = "You're using the latest version (\(currentVersion))."
-                    }
-                } catch {
-                    self.updateStatusMessage = "Error parsing update information: \(error.localizedDescription)"
-                }
-            }
-        }
-        
-        task.resume()
     }
     
-    // Helper method to compare version strings
-    private func isNewerVersion(_ version1: String, than version2: String) -> Bool {
-        // Enhanced cleaning to handle more GitHub tag formats
-        let cleanVersion1 = cleanVersionString(version1)
-        let cleanVersion2 = cleanVersionString(version2)
-        
-        // Print versions for debugging
-        print("Comparing versions: \(cleanVersion1) vs \(cleanVersion2)")
-        
-        let components1 = cleanVersion1.split(separator: ".").compactMap { Int($0) }
-        let components2 = cleanVersion2.split(separator: ".").compactMap { Int($0) }
-        
-        // Pad shorter arrays with zeros
-        let maxLength = max(components1.count, components2.count)
-        let paddedComponents1 = components1 + Array(repeating: 0, count: maxLength - components1.count)
-        let paddedComponents2 = components2 + Array(repeating: 0, count: maxLength - components2.count)
-        
-        // Compare each component
-        for (v1, v2) in zip(paddedComponents1, paddedComponents2) {
-            if v1 > v2 {
-                return true
-            } else if v1 < v2 {
-                return false
+    // MARK: - Update Status Views
+    
+    @ViewBuilder
+    private var updateStatusAndActionView: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            switch autoUpdater.updateState {
+            case .idle:
+                if let lastCheck = autoUpdater.lastCheckDate {
+                    Text("Last checked: \(lastCheck, formatter: dateFormatter)")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
+                
+            case .checking:
+                HStack(spacing: 8) {
+                    ProgressView().scaleEffect(0.8)
+                    Text("Checking for updates...")
+                        .font(.system(size: 13, weight: .medium))
+                }
+                
+            case .updateAvailable(let release):
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Update Available")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("Version \(release.tagName)")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    VisionOSButton(title: "Download", icon: "arrow.down", customColor: .green) {
+                        Task { await autoUpdater.downloadUpdate(release: release) }
+                    }.frame(width: 130)
+                }
+                
+            case .downloading(let progress):
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Downloading update... \(Int(progress * 100))%")
+                        .font(.system(size: 13, weight: .medium))
+                    ProgressView(value: progress)
+                        .progressViewStyle(LinearProgressViewStyle())
+                }
+                
+            case .downloadCompleted(let url):
+                HStack(spacing: 12) {
+                    Image(systemName: "checkmark.circle.fill").foregroundColor(.green)
+                    Text("Download complete.").font(.system(size: 13, weight: .medium))
+                    Spacer()
+                    VisionOSButton(title: "Show in Finder", icon: "folder", customColor: .blue) {
+                        NSWorkspace.shared.selectFile(url.path, inFileViewerRootedAtPath: url.deletingLastPathComponent().path)
+                    }.frame(width: 160)
+                }
+                
+            case .error(let error):
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundColor(.orange)
+                    Text(error.localizedDescription)
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                }
             }
         }
-        
-        // Versions are identical
-        return false
+        .padding(.top, 8)
+        .animation(.easeOut(duration: 0.2), value: autoUpdater.updateState)
     }
     
-    // Helper function to clean version strings
-    private func cleanVersionString(_ version: String) -> String {
-        // Remove "v" prefix if present
-        var cleanVersion = version.replacingOccurrences(of: "v", with: "")
-        
-        // Extract just the semantic version part (e.g., "1.6.0" from "1.6.0-beta.1")
-        if let match = cleanVersion.range(of: #"^\d+(\.\d+)*"#, options: .regularExpression) {
-            cleanVersion = String(cleanVersion[match])
-        }
-        
-        return cleanVersion
+    private var dateFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        return formatter
     }
+
     
     @AppStorage("enableCategories") private var enableCategories = false
     @AppStorage("hideMenuBarIcon") private var hideMenuBarIcon = false
@@ -1037,33 +918,32 @@ struct SettingsView: View {
                 
                 // Update check
                 VisionOSGroupBox(title: "Updates") {
-                    VStack(alignment: .leading, spacing: 16) {
-                        VisionOSButton(
-                            title: "Check for Updates",
-                            icon: "arrow.triangle.2.circlepath",
-                            customColor: Color(red: 0.35, green: 0.68, blue: 0.99), // JavaScript blue
-                            isInProgress: $isCheckingForUpdates,
-                            action: checkForUpdates
-                        )
-                        .frame(width: 180)
-                        
-                        if !updateStatusMessage.isEmpty {
-                            Text(updateStatusMessage)
-                                .font(.system(size: 14))
-                                .foregroundColor(.secondary)
-                                .padding(.top, 8)
-                                .multilineTextAlignment(.leading)
-                        }
-                        
-                        if releaseURL != nil {
-                            Button("Open Download Page") {
-                                if let url = releaseURL {
-                                    NSWorkspace.shared.open(url)
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Toggle("Automatic Updates", isOn: $autoUpdateEnabled)
+                                .onChange(of: autoUpdateEnabled) { enabled in
+                                    autoUpdater.enableAutoCheck(enabled)
                                 }
-                            }
-                            .buttonStyle(EnhancedButtonStyle(customColor: Color(red: 0.35, green: 0.68, blue: 0.99)))
-                            .padding(.top, 8)
+                            
+                            Spacer()
+                            
+                            VisionOSButton(
+                                title: "Check Now",
+                                icon: "arrow.triangle.2.circlepath",
+                                customColor: Color(red: 0.35, green: 0.68, blue: 0.99),
+                                isInProgress: .constant(autoUpdater.updateState == .checking),
+                                action: checkForUpdates
+                            )
+                            .frame(width: 130)
                         }
+                        
+                        // Divider for visual separation
+                        if autoUpdater.updateState != .idle {
+                            Divider().padding(.vertical, 4)
+                        }
+                        
+                        // Combined status and action view for a more compact layout
+                        updateStatusAndActionView
                     }
                 }
             }
@@ -1678,19 +1558,7 @@ struct PrivacySection: View {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
     }()
     
-    @State private var isCheckingForUpdates = false
-    @State private var updateStatusMessage = ""
-    
-    private func checkForUpdates() {
-        isCheckingForUpdates = true
-        updateStatusMessage = "Checking for updates..."
-        
-        // Simulate update check
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            isCheckingForUpdates = false
-            updateStatusMessage = "You're using the latest version"
-        }
-    }
+
     
     private var aboutSection: some View {
         VStack(spacing: 12) {
@@ -1706,31 +1574,9 @@ struct PrivacySection: View {
                 .font(.system(size: 12))
                 .foregroundColor(.secondary)
             
-            Button(action: checkForUpdates) {
-                HStack {
-                    if isCheckingForUpdates {
-                        ProgressView()
-                            .controlSize(.small)
-                    } else {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 12))
-                    }
-                    Text("Check for Updates")
-                        .font(.system(size: 12))
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Color.secondary.opacity(0.1))
-                .cornerRadius(6)
-            }
-            .buttonStyle(PlainButtonStyle())
-            .disabled(isCheckingForUpdates)
-            
-            if !updateStatusMessage.isEmpty {
-                Text(updateStatusMessage)
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
-            }
+            Text("Updates are managed in the main settings")
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
         }
         .padding(.vertical, 16)
     }
@@ -1918,20 +1764,5 @@ struct PrivacySection: View {
             return appName
         }
         return bundleId
-    }
-}
-
-// Structure to decode GitHub release response
-private struct GitHubRelease: Decodable {
-    let tagName: String
-    let htmlUrl: String
-    let body: String
-    let publishedAt: String
-    
-    enum CodingKeys: String, CodingKey {
-        case tagName = "tag_name"
-        case htmlUrl = "html_url"
-        case body
-        case publishedAt = "published_at"
     }
 }

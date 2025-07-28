@@ -40,12 +40,12 @@ struct VisualEffectView: NSViewRepresentable {
 
 struct ClipboardView: View {
     @ObservedObject var clipboardManager: ClipboardManager
+    @EnvironmentObject var appDelegate: ClipboardAppDelegate
     @State private var searchText = ""
     @State private var hoveredItemId: UUID? = nil
     @State private var isClearing = false
     @State private var trashFilled = false
     @Environment(\.colorScheme) private var colorScheme
-    @State private var showSettings = false
     @State private var segmentedSelection = 0 // 0 = Recent, 1 = Pinned
     @State private var isExporting = false
     @State private var isImporting = false
@@ -59,6 +59,7 @@ struct ClipboardView: View {
     @State private var quickLookURL: URL? = nil
     @State private var showQuickLook = false
     @State private var keyEventMonitor: Any? = nil
+    @State private var quickLookOpacity: Double = 0.0
     
     // Add the timeAgo function right here, before it's used
     private func timeAgo(from date: Date) -> String {
@@ -139,10 +140,6 @@ struct ClipboardView: View {
             
             mainContentView
         }
-        .sheet(isPresented: $showSettings) {
-            SettingsView(isPresented: $showSettings)
-                .environmentObject(clipboardManager)
-        }
         .sheet(isPresented: $showQuickLook) {
             if let url = quickLookURL {
                 VStack(spacing: 0) {
@@ -155,7 +152,7 @@ struct ClipboardView: View {
                         Spacer()
                         
                         Button(action: {
-                            showQuickLook = false
+                            closeQuickLook()
                         }) {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.title2)
@@ -171,6 +168,7 @@ struct ClipboardView: View {
                     ZStack {
                         QuickLookView(url: url)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .opacity(quickLookOpacity)
                         
                         // Fallback message if Quick Look fails
                         VStack {
@@ -191,6 +189,20 @@ struct ClipboardView: View {
                 }
                 .frame(minWidth: 700, minHeight: 500)
                 .background(Color(NSColor.windowBackgroundColor))
+                .onAppear {
+                    // Smooth fade in animation
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        quickLookOpacity = 1.0
+                    }
+                }
+                .onKeyPress(.space) {
+                    closeQuickLook()
+                    return .handled
+                }
+                .onKeyPress(.escape) {
+                    closeQuickLook()
+                    return .handled
+                }
             }
         }
         .onAppear {
@@ -717,7 +729,7 @@ struct ClipboardView: View {
                 Button(action: {
                     guard !isSettingsOpening else { return }
                     isSettingsOpening = true
-                    showSettings = true
+                    appDelegate.openSettings()
                     // Reset after a short delay
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         isSettingsOpening = false
@@ -1010,6 +1022,7 @@ struct ClipboardView: View {
         do {
             try imageData.write(to: tempFile)
             quickLookURL = tempFile
+            quickLookOpacity = 0.0 // Start hidden to prevent square artifact
             showQuickLook = true
         } catch {
             print("Error creating temporary file for Quick Look: \(error)")
@@ -1018,7 +1031,19 @@ struct ClipboardView: View {
     
     private func showQuickLookForURL(_ url: URL) {
         quickLookURL = url
+        quickLookOpacity = 0.0 // Start hidden to prevent square artifact
         showQuickLook = true
+    }
+    
+    private func closeQuickLook() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            quickLookOpacity = 0.0
+        }
+        
+        // Close the sheet after animation completes
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            showQuickLook = false
+        }
     }
     
     private func showQuickLookForText(_ item: ClipboardItem) {
@@ -1031,6 +1056,7 @@ struct ClipboardView: View {
         do {
             try text.write(to: tempFile, atomically: true, encoding: .utf8)
             quickLookURL = tempFile
+            quickLookOpacity = 0.0 // Start hidden to prevent square artifact
             showQuickLook = true
         } catch {
             print("Error creating temporary text file for Quick Look: \(error)")
