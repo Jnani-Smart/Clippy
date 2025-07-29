@@ -277,9 +277,54 @@ struct ClipboardView: View {
                     .font(.headline)
                     .fontWeight(.semibold)
                     .frame(maxWidth: .infinity, alignment: .center)
-                
-                // Cancel button - only shown when in select mode
-                if isSelectMode {
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 4)
+
+            SearchBar(text: $searchText, showCategoryBar: $showCategoryBar, selectedCategory: $selectedCategory)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 4)
+
+            // Selection bar below search bar
+            if isSelectMode {
+                HStack {
+                    // Select All/None button (left)
+                    Button(action: {
+                        withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
+                            if selectedItems.count == filteredItems.count {
+                                selectedItems.removeAll()
+                            } else {
+                                selectedItems = Set(filteredItems.map { $0.id })
+                            }
+                        }
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: selectedItems.count == filteredItems.count ? "minus.circle.fill" : "plus.circle.fill")
+                                .font(.system(size: 10, weight: .medium))
+                                .frame(width: 12, height: 12)
+                            Text(selectedItems.count == filteredItems.count ? "None" : "All")
+                                .font(.system(size: 11, weight: .medium))
+                        }
+                        .foregroundColor(selectedItems.count > 0 ? .accentColor : .secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(selectedItems.count > 0 ? Color.accentColor.opacity(0.08) : Color.secondary.opacity(0.08))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(selectedItems.count > 0 ? Color.accentColor.opacity(0.5) : Color.secondary.opacity(0.2), lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(BorderlessButtonStyle())
+                    .padding(.leading, 12)
+                    .padding(.trailing, 10)
+                    .transition(.scale(scale: 0.8).combined(with: .opacity))
+                    
+                    Spacer()
+                    
+                    // Cancel button (right)
                     Button(action: {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                             isSelectMode = false
@@ -306,23 +351,11 @@ struct ClipboardView: View {
                         )
                     }
                     .buttonStyle(BorderlessButtonStyle())
+                    .padding(.trailing, 12)
                     .transition(.opacity)
                 }
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 4)
-
-            SearchBar(text: $searchText, showCategoryBar: $showCategoryBar, selectedCategory: $selectedCategory)
                 .padding(.horizontal, 16)
-            
-            // Selection toolbar when in select mode
-            if isSelectMode {
-                selectionToolbar
-                    .padding(.horizontal, 16)
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .top).combined(with: .opacity),
-                        removal: .move(edge: .top).combined(with: .opacity)
-                    ))
+                .padding(.bottom, 2)
             }
 
             // Category filter bar with visibility control
@@ -686,42 +719,33 @@ struct ClipboardView: View {
             Divider()
             
             HStack {
-                // Clear button
+                // Dual-function trash button
                 Button(action: {
-                    // Guard against multiple clicks
-                    guard !isClearing else { return }
-                    
-                    // Simplified animation
-                    isClearing = true
-                    trashFilled = true
-                    
-                    // Clear with minimal animations
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        clipboardManager.clearHistory()
-                        
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                            isClearing = false
-                            trashFilled = false
+                    if isSelectMode && !selectedItems.isEmpty {
+                        // Delete selected items when in selection mode
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            deleteSelectedItems()
+                        }
+                    } else {
+                        // Activate selection mode when not in selection mode or no items selected
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            isSelectMode = true
                         }
                     }
                 }) {
                     HStack(spacing: 4) {
-                        Image(systemName: trashFilled ? "trash.fill" : "trash")
+                        Image(systemName: "trash")
                             .font(.system(size: 12, weight: .medium))
                             .imageScale(.medium)
                         
-                        Text("Clear")
+                        Text(isSelectMode && !selectedItems.isEmpty ? "Delete" : "Select")
                             .font(.system(size: 12, weight: .medium))
                     }
                     .padding(5)
-                    .background(
-                        RoundedRectangle(cornerRadius: 5)
-                            .fill(trashFilled ? Color.red.opacity(0.1) : Color.clear)
-                    )
                 }
                 .buttonStyle(BorderlessButtonStyle())
                 .padding(.horizontal)
-                .disabled(isClearing)
+                .disabled(isSelectMode && selectedItems.isEmpty)
                 
                 Spacer()
                 
@@ -743,11 +767,18 @@ struct ClipboardView: View {
                 .buttonStyle(BorderlessButtonStyle())
                 .disabled(isSettingsOpening)
                 
-                // Display the count of filtered items, not just all items
-                Text("\(filteredItems.count) items")
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 10)
+                // Display the count of filtered items, or selected items count during selection mode
+                if isSelectMode {
+                    Text("\(selectedItems.count) of \(filteredItems.count) selected")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 10)
+                } else {
+                    Text("\(filteredItems.count) items")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 10)
+                }
             }
             .padding(.vertical, 6)
             .padding(.horizontal)
@@ -868,97 +899,6 @@ struct ClipboardView: View {
         }
         .buttonStyle(PlainButtonStyle())
         .animation(.spring(response: 0.2, dampingFraction: 0.7), value: segmentedSelection)
-    }
-    
-    // Selection toolbar with compact design for more clipboard item space
-    private var selectionToolbar: some View {
-        HStack(alignment: .center, spacing: 0) {
-            // Select All/None button with compact sizing
-            Button(action: {
-                withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
-                    if selectedItems.count == filteredItems.count {
-                        selectedItems.removeAll()
-                    } else {
-                        selectedItems = Set(filteredItems.map { $0.id })
-                    }
-                }
-            }) {
-                HStack(spacing: 3) {
-                    Image(systemName: selectedItems.count == filteredItems.count ? "minus.circle.fill" : "plus.circle.fill")
-                        .font(.system(size: 10, weight: .medium))
-                        .frame(width: 12, height: 12)
-                    Text(selectedItems.count == filteredItems.count ? "None" : "All")
-                        .font(.system(size: 11, weight: .medium))
-                }
-                .foregroundColor(.accentColor)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 3)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color.accentColor.opacity(0.08))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 6)
-                                .stroke(Color.accentColor.opacity(0.2), lineWidth: 0.5)
-                        )
-                )
-            }
-            .buttonStyle(BorderlessButtonStyle())
-            .padding(.leading, 8)
-            
-            Spacer()
-            
-            // Selection count with compact design
-            VStack(spacing: 0) {
-                Text("\(selectedItems.count)")
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundColor(.primary)
-                Text("selected")
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundColor(.secondary)
-            }
-            .frame(minWidth: 40)
-            
-            Spacer()
-            
-            // Delete Selected button with compact sizing
-            Button(action: {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                    deleteSelectedItems()
-                }
-            }) {
-                HStack(spacing: 3) {
-                    Image(systemName: "trash.fill")
-                        .font(.system(size: 10, weight: .medium))
-                        .frame(width: 12, height: 12)
-                    Text("Delete")
-                        .font(.system(size: 11, weight: .medium))
-                }
-                .foregroundColor(.red)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 3)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color.red.opacity(0.08))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 6)
-                                .stroke(Color.red.opacity(0.2), lineWidth: 0.5)
-                        )
-                )
-            }
-            .buttonStyle(BorderlessButtonStyle())
-            .disabled(selectedItems.isEmpty)
-            .opacity(selectedItems.isEmpty ? 0.5 : 1.0)
-            .padding(.trailing, 8)
-        }
-        .padding(.vertical, 4)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.secondary.opacity(0.04))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.secondary.opacity(0.08), lineWidth: 0.5)
-                )
-        )
     }
     
     // Function to delete selected items using existing ClipboardManager methods

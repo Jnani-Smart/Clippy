@@ -134,9 +134,6 @@ class AutoUpdater: ObservableObject {
                 }
             } else {
                 updateState = .idle
-                if !silent {
-                    await showNoUpdatesAlert()
-                }
             }
             
             lastCheckDate = Date()

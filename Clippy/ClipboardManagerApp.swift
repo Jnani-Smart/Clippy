@@ -11,9 +11,9 @@ struct ClipboardManagerApp: App {
     var body: some Scene {
         Settings {
             Group {
-                if isAppDelegateInitialized {
+                if isAppDelegateInitialized, let clipboardManager = appDelegate.clipboardManager {
                     SettingsView(isPresented: .constant(true))
-                        .environmentObject(appDelegate.clipboardManager!)
+                        .environmentObject(clipboardManager)
                         .environmentObject(appDelegate)
                 } else {
                     // Show a placeholder while initializing
@@ -135,11 +135,13 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         // Configure popover
         popover.contentSize = NSSize(width: 320, height: 400)
         popover.behavior = .transient
-        popover.contentViewController = NSHostingController(
-            rootView: ClipboardView(clipboardManager: clipboardManager!)
-                .environmentObject(clipboardManager!)
-                .environmentObject(self)
-        )
+        if let clipboardManager = clipboardManager {
+            popover.contentViewController = NSHostingController(
+                rootView: ClipboardView(clipboardManager: clipboardManager)
+                    .environmentObject(clipboardManager)
+                    .environmentObject(self)
+            )
+        }
         
         // Always create status bar item regardless of preference, since we're a menu bar app
         setupStatusBarItem()
@@ -372,6 +374,13 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         }
         keyHandler.translatesAutoresizingMaskIntoConstraints = false
         
+        // Check if clipboardManager is available before creating settings view
+        guard let clipboardManager = clipboardManager else {
+            // Reset the flag since we're not actually showing the window
+            isShowingFloatingWindow = false
+            return
+        }
+        
         // Create settings view
         let hostView = NSHostingView(
             rootView: SettingsView(isPresented: Binding<Bool>(
@@ -382,7 +391,7 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
                     }
                 }
             ))
-            .environmentObject(clipboardManager!)
+            .environmentObject(clipboardManager)
             .environmentObject(self)
         )
         hostView.translatesAutoresizingMaskIntoConstraints = false
@@ -605,6 +614,13 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
             return
         }
         
+        // Check if clipboardManager is initialized - if not, we're not ready yet
+        guard let clipboardManager = clipboardManager else {
+            // Reset the flag since we're not actually showing the window
+            isShowingFloatingWindow = false
+            return
+        }
+        
         // Set the flag to prevent multiple windows being created
         isShowingFloatingWindow = true
         
@@ -767,8 +783,8 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         let hostView = NSHostingView(
             rootView:
                 // Wrap content view with key handler to ensure ESC is captured
-                ClipboardView(clipboardManager: clipboardManager!)
-                    .environmentObject(clipboardManager!)
+                ClipboardView(clipboardManager: clipboardManager)
+                    .environmentObject(clipboardManager)
                     .environmentObject(self)
                     .onExitCommand { [weak self] in
                         if let self = self, let window = self.floatingWindow {
@@ -1290,6 +1306,40 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
                 window.level = .floating
             }
         }
+    }
+    
+    func showSettingsWindow() {
+        guard let clipboardManager = clipboardManager else { return }
+        
+        // Get current menu position
+        guard let screen = NSScreen.main else { return }
+        let menuXPosition = popover.contentViewController?.view.window?.frame.origin.x ?? screen.frame.midX
+        let screenMidX = screen.frame.midX
+        
+        // Position settings window on opposite side of screen from menu
+        let settingsWindow = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 400, height: 500),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        
+        settingsWindow.contentViewController = NSHostingController(
+            rootView: SettingsView(isPresented: .constant(true))
+                .environmentObject(clipboardManager)
+                .environmentObject(self)
+        )
+        
+        settingsWindow.center()
+        
+        // Adjust position based on menu location
+        let newX = menuXPosition < screenMidX ? 
+            screen.frame.maxX - settingsWindow.frame.width - 20 : 
+            20
+        
+        settingsWindow.setFrameOrigin(NSPoint(x: newX, y: settingsWindow.frame.origin.y))
+        settingsWindow.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 }
 
