@@ -79,7 +79,9 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE) file for details.
+
+Attribution: If you distribute this project or derivatives, please retain the copyright and attribution notices and include the [NOTICE](NOTICE) file in your distribution.
 
 ## Version History
 
