@@ -198,19 +198,11 @@ struct ClipboardItemRow: View {
             if let language = item.detectedLanguage {
                 codePreviewView(language: language)
             } else {
-                // Regular text
+                // Regular text (slight reveal on hover for consistency)
                 Text(item.preview)
                     .font(.system(size: 13))
-                    .lineLimit(showFullContent ? nil : 2)
+                    .lineLimit(showFullContent ? 3 : 2)
                     .fixedSize(horizontal: false, vertical: true)
-                
-                if showFullContent, let text = item.text, text.count > 60 {
-                    Text(text)
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
-                        .lineLimit(8)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
             }
         }
     }
@@ -264,7 +256,7 @@ struct ClipboardItemRow: View {
     private func codeTextView(text: String) -> some View {
         Text(text)
             .font(.system(size: 12, design: .monospaced))
-            .lineLimit(showFullContent ? 15 : 3)
+            .lineLimit(showFullContent ? 6 : 3)
             .fixedSize(horizontal: false, vertical: true)
             .padding(8)
             .background(
