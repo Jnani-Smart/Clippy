@@ -1,4 +1,26 @@
-# Clippy v1.7.0 Release Notes
+# Clippy v1.8.0 Release Notes
+
+## Quick Look Improvements
+
+### Enhanced Preview Initialization
+- **Artifact-Free Startup**: Completely eliminated visual glitches and artifacts that appeared when initializing Quick Look preview
+- **Smooth Loading Experience**: Added proper loading states with progress indicators while content is being prepared
+- **Content-Ready Detection**: Improved timing system that ensures Quick Look content is fully loaded before displaying
+- **Better State Management**: Enhanced lifecycle management for cleaner transitions between preview states
+
+### Technical Improvements
+- **Optimized Initialization Process**: Quick Look views now initialize asynchronously to prevent visual artifacts
+- **Enhanced Error Handling**: Better fallback mechanisms when Quick Look content fails to load
+- **Improved Animation Timing**: Animations now properly sync with content readiness for smoother user experience
+- **Memory Management**: Better cleanup and state reset between Quick Look sessions
+
+## Bug Fixes
+- Fixed Quick Look initialization showing temporary artifacts or blank content
+- Resolved timing issues where animations would start before content was ready
+- Improved Quick Look reliability across different file types and content sources
+- Enhanced preview window stability and performance
+
+# Previous Release: Clippy v1.7.0 Release Notes
 
 ## Major Enhancements
 

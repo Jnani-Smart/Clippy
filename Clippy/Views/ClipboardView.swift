@@ -60,6 +60,7 @@ struct ClipboardView: View {
     @State private var showQuickLook = false
     @State private var keyEventMonitor: Any? = nil
     @State private var quickLookOpacity: Double = 0.0
+    @State private var isQuickLookContentReady = false
     
     // Add the timeAgo function right here, before it's used
     private func timeAgo(from date: Date) -> String {
@@ -166,9 +167,22 @@ struct ClipboardView: View {
                     
                     // Quick Look content with fallback
                     ZStack {
-                        QuickLookView(url: url)
+                        QuickLookView(url: url, isContentReady: $isQuickLookContentReady)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .opacity(quickLookOpacity)
+                        
+                        // Loading indicator while content is preparing
+                        if !isQuickLookContentReady {
+                            VStack {
+                                ProgressView()
+                                    .scaleEffect(1.2)
+                                    .padding(.bottom, 8)
+                                
+                                Text("Loading preview...")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
                         
                         // Fallback message if Quick Look fails
                         VStack {
@@ -190,9 +204,16 @@ struct ClipboardView: View {
                 .frame(minWidth: 700, minHeight: 500)
                 .background(Color(NSColor.windowBackgroundColor))
                 .onAppear {
-                    // Smooth fade in animation
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        quickLookOpacity = 1.0
+                    // Reset content ready state
+                    isQuickLookContentReady = false
+                    quickLookOpacity = 0.0
+                }
+                .onChange(of: isQuickLookContentReady) { _, isReady in
+                    if isReady {
+                        // Smooth fade in animation once content is ready
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            quickLookOpacity = 1.0
+                        }
                     }
                 }
                 .onKeyPress(.space) {
@@ -962,7 +983,8 @@ struct ClipboardView: View {
         do {
             try imageData.write(to: tempFile)
             quickLookURL = tempFile
-            quickLookOpacity = 0.0 // Start hidden to prevent square artifact
+            quickLookOpacity = 0.0 // Start hidden to prevent artifacts
+            isQuickLookContentReady = false // Reset content ready state
             showQuickLook = true
         } catch {
             print("Error creating temporary file for Quick Look: \(error)")
@@ -971,7 +993,8 @@ struct ClipboardView: View {
     
     private func showQuickLookForURL(_ url: URL) {
         quickLookURL = url
-        quickLookOpacity = 0.0 // Start hidden to prevent square artifact
+        quickLookOpacity = 0.0 // Start hidden to prevent artifacts
+        isQuickLookContentReady = false // Reset content ready state
         showQuickLook = true
     }
     
@@ -983,6 +1006,7 @@ struct ClipboardView: View {
         // Close the sheet after animation completes
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             showQuickLook = false
+            isQuickLookContentReady = false // Reset for next time
         }
     }
     
@@ -996,7 +1020,8 @@ struct ClipboardView: View {
         do {
             try text.write(to: tempFile, atomically: true, encoding: .utf8)
             quickLookURL = tempFile
-            quickLookOpacity = 0.0 // Start hidden to prevent square artifact
+            quickLookOpacity = 0.0 // Start hidden to prevent artifacts
+            isQuickLookContentReady = false // Reset content ready state
             showQuickLook = true
         } catch {
             print("Error creating temporary text file for Quick Look: \(error)")
@@ -1074,19 +1099,29 @@ struct ClipboardView: View {
 // MARK: - Quick Look View
 struct QuickLookView: NSViewRepresentable {
     let url: URL
+    @Binding var isContentReady: Bool
     
     func makeNSView(context: Context) -> NSView {
         let containerView = NSView()
         let previewView = QLPreviewView()
         
         // Configure the preview view
-        previewView.previewItem = url as QLPreviewItem
         previewView.shouldCloseWithWindow = false
         previewView.autoresizingMask = [.width, .height]
         
         // Add the preview view to container
         containerView.addSubview(previewView)
         previewView.frame = containerView.bounds
+        
+        // Set the preview item after a brief delay to ensure proper initialization
+        DispatchQueue.main.async {
+            previewView.previewItem = url as QLPreviewItem
+            
+            // Mark content as ready after a short delay to allow QLPreviewView to initialize
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                isContentReady = true
+            }
+        }
         
         return containerView
     }

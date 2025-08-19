@@ -5,6 +5,19 @@ All notable changes to Clippy will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2025-08-19
+
+### Fixed
+- Quick Look initialization artifacts and visual glitches during startup
+- Improved Quick Look content loading with proper timing and state management
+- Enhanced Quick Look preview reliability with better error handling
+- Smoother Quick Look animations with content-ready detection
+
+### Changed
+- Optimized Quick Look preview initialization process for better user experience
+- Enhanced loading states with progress indicators during Quick Look preparation
+- Improved Quick Look view lifecycle management for cleaner state transitions
+
 ## [1.7.0] - 2025-07-28
 
 ### Added
