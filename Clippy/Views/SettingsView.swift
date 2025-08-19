@@ -279,6 +279,124 @@ struct SettingsView: View {
         !UserDefaults.standard.bool(forKey: "hasLaunchedBefore")
     }
     
+    // MARK: - Window Configuration
+    
+    private func findSettingsWindow() -> NSWindow? {
+        // First try to find by title
+        if let window = NSApplication.shared.windows.first(where: { $0.title == "Settings" }) {
+            return window
+        }
+        
+        // Then try to find by content
+        let settingsWindow = NSApplication.shared.windows.first { window in
+            // Check if this window contains our settings view
+            return window.contentView?.subviews.contains { view in
+                view.description.contains("SettingsView") || 
+                view.subviews.contains { subview in
+                    subview.description.contains("TabView")
+                }
+            } ?? false
+        }
+        
+        // Fallback to key window
+        return settingsWindow ?? NSApplication.shared.keyWindow
+    }
+    
+    private func configureSettingsWindow() {
+        guard let window = findSettingsWindow() else { return }
+        
+        // Configure window properties
+        window.level = .normal
+        window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+        window.isReleasedWhenClosed = false
+        window.center()
+        
+        // Make the window movable by the background
+        window.isMovableByWindowBackground = true
+        window.standardWindowButton(.closeButton)?.isHidden = true
+        window.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        window.standardWindowButton(.zoomButton)?.isHidden = true
+        
+        // Set window title for proper identification
+        window.title = "Settings"
+    }
+    
+    private func initializeSettings() {
+        // Load excluded apps
+        loadExcludedApps()
+        
+        // Initialize keyboard shortcut settings
+        initializeKeyboardShortcuts()
+        
+        // Set up event monitoring
+        setupEventMonitoring()
+        
+        // Handle first launch
+        handleFirstLaunch()
+    }
+    
+    private func initializeKeyboardShortcuts() {
+        // Load from UserDefaults manually
+        if let savedModifiers = UserDefaults.standard.object(forKey: "clipboardShortcutModifiers") as? UInt {
+            shortcutModifiers = savedModifiers
+        } else {
+            // Use default value
+            shortcutModifiers = UInt(NSEvent.ModifierFlags.command.rawValue | NSEvent.ModifierFlags.shift.rawValue)
+            // Save default to UserDefaults
+            UserDefaults.standard.set(shortcutModifiers, forKey: "clipboardShortcutModifiers")
+        }
+        
+        // Check if shortcutKey is 0 (uninitialized or reset to nil)
+        if shortcutKey == 0 {
+            // Reset to default V key (9)
+            shortcutKey = 9
+            UserDefaults.standard.set(9, forKey: "clipboardShortcutKey")
+        }
+        
+        // Always create a valid KeyCombo
+        currentKeyCombo = KeyCombo(key: shortcutKey, modifiers: NSEvent.ModifierFlags(rawValue: shortcutModifiers))
+        
+        // Ensure the notification is posted to update shortcuts with a delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            if let combo = currentKeyCombo {
+                NotificationCenter.default.post(
+                    name: Notification.Name("UpdateShortcuts"),
+                    object: nil,
+                    userInfo: ["keyCombo": combo]
+                )
+            }
+        }
+    }
+    
+    private func setupEventMonitoring() {
+        // Add a local event monitor to capture the Escape key
+        keyEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            if event.keyCode == 53 { // ESC key
+                // Just dismiss the settings instead of quitting
+                isPresented = false
+                return nil // Consume the event
+            }
+            return event // Pass other events through
+        }
+    }
+    
+    private func handleFirstLaunch() {
+        // Check if this is the first launch of the app
+        if isFirstLaunch {
+            // Select the About tab
+            selectedTab = 5
+            
+            // Delay to ensure view is fully loaded
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                showThankYou = true
+                showConfetti = true
+                
+                // Mark as launched
+                UserDefaults.standard.set(true, forKey: "hasLaunchedBefore")
+            }
+        }
+    }
+    
     var body: some View {
         ZStack(alignment: .topLeading) {
             VStack(spacing: 0) {
@@ -344,81 +462,13 @@ struct SettingsView: View {
             .offset(x: 10, y: 10)
         }
         .onAppear {
-            // Configure the window to behave as a normal window, not floating
-            if let window = NSApplication.shared.windows.first(where: { $0.title == "Settings" || $0.title.isEmpty }) {
-                window.level = .normal
-                window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
-                window.isReleasedWhenClosed = false
-                window.center()
-                
-                // Make the window movable by the background
-                window.isMovableByWindowBackground = true
-                window.standardWindowButton(.closeButton)?.isHidden = true
-                window.standardWindowButton(.miniaturizeButton)?.isHidden = true
-                window.standardWindowButton(.zoomButton)?.isHidden = true
-                
-                // Set window title for proper identification
-                window.title = "Settings"
+            // Configure the window with a slight delay to ensure it's fully initialized
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                configureSettingsWindow()
             }
             
-            // Load excluded apps
-            loadExcludedApps()
-            
-            // Check if this is the first launch of the app
-            if isFirstLaunch {
-                // Select the About tab
-                selectedTab = 5
-                
-                // Delay to ensure view is fully loaded
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    showThankYou = true
-                    showConfetti = true
-                    
-                    // Mark as launched
-                    UserDefaults.standard.set(true, forKey: "hasLaunchedBefore")
-                }
-            }
-            
-            // Add a local event monitor to capture the Escape key
-            keyEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-                if event.keyCode == 53 { // ESC key
-                    // Just dismiss the settings instead of quitting
-                    isPresented = false
-                    return nil // Consume the event
-                }
-                return event // Pass other events through
-            }
-            
-            // Load from UserDefaults manually
-            if let savedModifiers = UserDefaults.standard.object(forKey: "clipboardShortcutModifiers") as? UInt {
-                shortcutModifiers = savedModifiers
-            } else {
-                // Use default value
-                shortcutModifiers = UInt(NSEvent.ModifierFlags.command.rawValue | NSEvent.ModifierFlags.shift.rawValue)
-                // Save default to UserDefaults
-                UserDefaults.standard.set(shortcutModifiers, forKey: "clipboardShortcutModifiers")
-            }
-            
-            // Check if shortcutKey is 0 (uninitialized or reset to nil)
-            if shortcutKey == 0 {
-                // Reset to default V key (9)
-                shortcutKey = 9
-                UserDefaults.standard.set(9, forKey: "clipboardShortcutKey")
-            }
-            
-            // Always create a valid KeyCombo
-            currentKeyCombo = KeyCombo(key: shortcutKey, modifiers: NSEvent.ModifierFlags(rawValue: shortcutModifiers))
-            
-            // Ensure the notification is posted to update shortcuts
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                if let combo = currentKeyCombo {
-                    NotificationCenter.default.post(
-                        name: Notification.Name("UpdateShortcuts"),
-                        object: nil,
-                        userInfo: ["keyCombo": combo]
-                    )
-                }
-            }
+            // Initialize settings in proper sequence
+            initializeSettings()
         }
         .onDisappear {
             // Remove the key event monitor when the view disappears
@@ -960,19 +1010,6 @@ struct SettingsView: View {
                     }
                 }
             )
-            .onAppear {
-                // Check if this is the first launch
-                if FirstLaunchManager.shared.isFirstLaunch {
-                    // Delay to ensure view is fully loaded
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        showThankYou = true
-                        showConfetti = true
-                        
-                        // Mark as launched
-                        FirstLaunchManager.shared.markAsLaunched()
-                    }
-                }
-            }
         }
     }
     
@@ -1048,7 +1085,7 @@ struct SettingsView: View {
         savePanel.message = "Choose where to save your clipboard history."
         
         // Present as sheet on the correct window
-        if let window = NSApplication.shared.windows.first(where: { $0.title == "Settings" }) {
+        if let window = findSettingsWindow() {
             savePanel.beginSheetModal(for: window) { response in
                 if response == .OK, let targetURL = savePanel.url {
                     do {
@@ -1095,7 +1132,7 @@ struct SettingsView: View {
         openPanel.allowsMultipleSelection = false
         
         // Present as sheet on the correct window
-        if let window = NSApplication.shared.windows.first(where: { $0.title == "Settings" }) {
+        if let window = findSettingsWindow() {
             openPanel.beginSheetModal(for: window) { response in
                 if response == .OK, let url = openPanel.url {
                     let success = clipboardManager.importHistory(from: url)
@@ -1668,9 +1705,6 @@ struct PrivacySection: View {
             .padding(8)
         }
         .padding(.bottom, 16)
-        .onAppear {
-            loadExcludedApps()
-        }
     }
     
     private func addExcludedApp() {
