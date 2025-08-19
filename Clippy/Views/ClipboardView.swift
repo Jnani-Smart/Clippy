@@ -291,11 +291,6 @@ struct ClipboardView: View {
                 .animation(.spring(response: 0.3, dampingFraction: 0.7), value: segmentedSelection)
                 .transition(.opacity.animation(.easeOut(duration: 0.2)))
             }
-            else {
-                // Maintain consistent spacing when segmented control is hidden in selection mode
-                Spacer(minLength: 8)
-                    .frame(height: 8)
-            }
             
             // Show either recent or pinned based on selection
             if segmentedSelection == 0 {
