@@ -291,6 +291,11 @@ struct ClipboardView: View {
                 .animation(.spring(response: 0.3, dampingFraction: 0.7), value: segmentedSelection)
                 .transition(.opacity.animation(.easeOut(duration: 0.2)))
             }
+            else {
+                // Maintain consistent spacing when segmented control is hidden in selection mode
+                Spacer(minLength: 8)
+                    .frame(height: 8)
+            }
             
             // Show either recent or pinned based on selection
             if segmentedSelection == 0 {
@@ -326,11 +331,43 @@ struct ClipboardView: View {
     
     private var headerView: some View {
         VStack(spacing: 4) {
-            HStack(alignment: .center) {
+            ZStack {
                 Text("Clippy")
                     .font(.headline)
                     .fontWeight(.semibold)
                     .frame(maxWidth: .infinity, alignment: .center)
+
+                if isSelectMode {
+                    HStack {
+                        Spacer()
+                        Button(action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                isSelectMode = false
+                                selectedItems.removeAll()
+                            }
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 10, weight: .medium))
+                                    .frame(width: 12, height: 12)
+                                Text("Cancel")
+                                    .font(.system(size: 11, weight: .medium))
+                            }
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(Color.secondary.opacity(0.08))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(Color.secondary.opacity(0.2), lineWidth: 0.5)
+                            )
+                        }
+                        .buttonStyle(BorderlessButtonStyle())
+                    }
+                }
             }
             .padding(.horizontal, 16)
             .padding(.top, 4)
@@ -339,78 +376,7 @@ struct ClipboardView: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, 0)
 
-            // Selection bar below search bar
-            if isSelectMode {
-                HStack {
-                    // Select All/None button (left)
-                    Button(action: {
-                        withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
-                            if selectedItems.count == filteredItems.count {
-                                selectedItems.removeAll()
-                            } else {
-                                selectedItems = Set(filteredItems.map { $0.id })
-                            }
-                        }
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: selectedItems.count == filteredItems.count ? "minus.circle.fill" : "plus.circle.fill")
-                                .font(.system(size: 10, weight: .medium))
-                                .frame(width: 12, height: 12)
-                            Text(selectedItems.count == filteredItems.count ? "None" : "All")
-                                .font(.system(size: 11, weight: .medium))
-                        }
-                        .foregroundColor(selectedItems.count > 0 ? .accentColor : .secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(selectedItems.count > 0 ? Color.accentColor.opacity(0.08) : Color.secondary.opacity(0.08))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(selectedItems.count > 0 ? Color.accentColor.opacity(0.5) : Color.secondary.opacity(0.2), lineWidth: 1)
-                        )
-                    }
-                    .buttonStyle(BorderlessButtonStyle())
-                    .padding(.leading, 12)
-                    .padding(.trailing, 10)
-                    .transition(.scale(scale: 0.8).combined(with: .opacity))
-                    
-                    Spacer()
-                    
-                    // Cancel button (right)
-                    Button(action: {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                            isSelectMode = false
-                            selectedItems.removeAll()
-                        }
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 10, weight: .medium))
-                                .frame(width: 12, height: 12)
-                            Text("Cancel")
-                                .font(.system(size: 11, weight: .medium))
-                        }
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(Color.secondary.opacity(0.08))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(Color.secondary.opacity(0.2), lineWidth: 0.5)
-                        )
-                    }
-                    .buttonStyle(BorderlessButtonStyle())
-                    .padding(.trailing, 12)
-                    .transition(.opacity)
-                }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 2)
-            }
+            // Removed selection bar; cancel button is now in the title row when in select mode
 
             // Category filter bar with visibility control
             if showCategoryBar {
