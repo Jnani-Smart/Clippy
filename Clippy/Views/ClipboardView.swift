@@ -61,12 +61,26 @@ struct ClipboardView: View {
     @State private var keyEventMonitor: Any? = nil
     @State private var quickLookOpacity: Double = 0.0
     @State private var isQuickLookContentReady = false
+    @State private var showClearAllConfirmation = false
     
     // Add the timeAgo function right here, before it's used
     private func timeAgo(from date: Date) -> String {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
         return formatter.localizedString(for: date, relativeTo: Date())
+    }
+    
+    // Helper function to determine trash button text
+    private func getTrashButtonText() -> String {
+        if isSelectMode {
+            if !selectedItems.isEmpty {
+                return "Delete"
+            } else {
+                return "Clear All"
+            }
+        } else {
+            return "Clear"
+        }
     }
     
     // Add caching for filtered items
@@ -289,6 +303,25 @@ struct ClipboardView: View {
         }
         .frame(width: 320, height: 400)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSelectMode)
+        .alert("Clear All Items", isPresented: $showClearAllConfirmation) {
+            Button("Cancel", role: .cancel) {
+                // Do nothing, just dismiss
+            }
+            Button("Clear All", role: .destructive) {
+                // Select all items and delete them
+                withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
+                    selectedItems = Set(filteredItems.map { $0.id })
+                }
+                // Auto-delete after a brief moment to show selection
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        deleteSelectedItems()
+                    }
+                }
+            }
+        } message: {
+            Text("Permanently delete \(filteredItems.count) clipboard items? This action cannot be undone.")
+        }
     }
     
     private var headerView: some View {
@@ -304,7 +337,7 @@ struct ClipboardView: View {
 
             SearchBar(text: $searchText, showCategoryBar: $showCategoryBar, selectedCategory: $selectedCategory)
                 .padding(.horizontal, 16)
-                .padding(.bottom, 4)
+                .padding(.bottom, 0)
 
             // Selection bar below search bar
             if isSelectMode {
@@ -387,8 +420,9 @@ struct ClipboardView: View {
             }
 
             Divider()
-                .padding(.horizontal, 12)
-                .padding(.top, 1)
+                .padding(.horizontal, 16)
+                .padding(.top, 2)
+                .padding(.bottom, 2)
         }
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSelectMode)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showCategoryBar)
@@ -742,14 +776,19 @@ struct ClipboardView: View {
             HStack {
                 // Dual-function trash button
                 Button(action: {
-                    if isSelectMode && !selectedItems.isEmpty {
-                        // Delete selected items when in selection mode
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                            deleteSelectedItems()
+                    if isSelectMode {
+                        if !selectedItems.isEmpty {
+                            // Delete selected items when in selection mode with items selected
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                deleteSelectedItems()
+                            }
+                        } else {
+                            // Show confirmation alert for Clear All functionality
+                            showClearAllConfirmation = true
                         }
                     } else {
-                        // Activate selection mode when not in selection mode or no items selected
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        // Activate selection mode when not in selection mode with smooth transition
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                             isSelectMode = true
                         }
                     }
@@ -758,15 +797,32 @@ struct ClipboardView: View {
                         Image(systemName: "trash")
                             .font(.system(size: 12, weight: .medium))
                             .imageScale(.medium)
+                            .foregroundColor(isSelectMode && selectedItems.isEmpty ? .red : .primary)
                         
-                        Text(isSelectMode && !selectedItems.isEmpty ? "Delete" : "Select")
+                        Text(getTrashButtonText())
                             .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(isSelectMode && selectedItems.isEmpty ? .red : .primary)
+                            .id("trash-button-text-\(getTrashButtonText())")
+                            .transition(.asymmetric(
+                                insertion: .opacity.combined(with: .scale(scale: 0.9)).animation(.easeOut(duration: 0.15)),
+                                removal: .opacity.combined(with: .scale(scale: 1.1)).animation(.easeIn(duration: 0.1))
+                            ))
                     }
-                    .padding(5)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(isSelectMode && selectedItems.isEmpty ? Color.red.opacity(0.1) : Color.clear)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(isSelectMode && selectedItems.isEmpty ? Color.red.opacity(0.3) : Color.clear, lineWidth: 1)
+                    )
                 }
                 .buttonStyle(BorderlessButtonStyle())
                 .padding(.horizontal)
-                .disabled(isSelectMode && selectedItems.isEmpty)
+                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSelectMode)
+                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: selectedItems.isEmpty)
                 
                 Spacer()
                 
