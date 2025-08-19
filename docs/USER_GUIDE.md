@@ -6,7 +6,7 @@ Welcome to Clippy, a modern clipboard manager for macOS featuring a beautiful Vi
 
 ### Installation
 
-1. Download the latest version of Clippy from the [releases page](https://github.com/YOUR_USERNAME/Clippy/releases)
+1. Download the latest version of Clippy from the [releases page](https://github.com/Jnani-Smart/Clippy/releases)
 2. Drag Clippy to your Applications folder
 3. Open Clippy from your Applications folder
 
@@ -58,6 +58,23 @@ To keep important items easily accessible:
 1. Hover over any clipboard item
 2. Click the pin icon that appears
 3. Access pinned items from the "Pinned" tab
+
+### Quick Look Preview
+
+- Press the Space bar to preview items with native macOS Quick Look
+- Smooth fade animations; press Space or Escape to close
+- Initialization is artifact-free with proper loading states
+
+### Selection Mode
+
+- Enter selection mode from the context menu
+- The Cancel button appears in the top-right beside the title
+- The previous Select All/None bar has been removed for a cleaner layout
+
+### Hover Behavior
+
+- Hovering over items reveals a small additional portion of content
+- To preserve consistent row heights, text reveals up to 3 lines, and code up to 6 lines
 
 ## Advanced Features
 

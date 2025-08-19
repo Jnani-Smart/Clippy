@@ -1,6 +1,6 @@
 # Upcoming Releases
 
-## v1.7.0 (Planned)
+## v1.9.0 (Planned)
 
 ### Features
 - Full Markdown support with preview
@@ -14,11 +14,11 @@
 
 ## Future Releases
 
-### v1.8.0
-- Multi-language support
-- Advanced regular expression search
-- Scriptable automation API
-- Command palette for keyboard power users
+### v1.8.0 (Released)
+- Quick Look improvements with artifact-free initialization and better loading states
+- Selection mode UI refinement (Cancel button in header, removed Select All/None)
+- Header alignment fixes between search and segmented control
+- Consistent hover reveal for long items to maintain row heights
 
 ## Completed Releases
 

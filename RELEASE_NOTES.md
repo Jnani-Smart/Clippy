@@ -14,6 +14,12 @@
 - **Improved Animation Timing**: Animations now properly sync with content readiness for smoother user experience
 - **Memory Management**: Better cleanup and state reset between Quick Look sessions
 
+## UI/UX Improvements
+
+- **Selection Mode Refinement**: Cancel button moved to the top-right beside the title; removed Select All/None bar for a more focused UI
+- **Header Alignment**: Divider between the search bar and segmented control is now perfectly centered with consistent spacing
+- **Consistent Hover Reveal**: Long items now expand slightly on hover (text up to 3 lines, code up to 6 lines) to maintain consistent row heights
+
 ## Bug Fixes
 - Fixed Quick Look initialization showing temporary artifacts or blank content
 - Resolved timing issues where animations would start before content was ready

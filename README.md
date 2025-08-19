@@ -24,7 +24,7 @@ Clippy is a lightweight, elegant clipboard manager for macOS that helps you mana
 - ⚙️ **Improved Settings**: Better window management with ESC key support and sheet-style dialogs
 - 🔄 **Enhanced Settings Window**: Floating panel with macOS Finder-like translucency, rounded corners, and smooth animations
 - 🚀 **Auto-Update Notifications**: Automatic notifications when new versions are available (not just manual checks)
-- 🔍 **Quick Look Preview**: Space bar preview for clipboard items with artifact-free initialization, smooth animations, and keyboard controls
+- 🔍 **Quick Look Preview**: Space bar preview for clipboard items with artifact-free initialization, proper loading states, smooth animations, and keyboard controls
 - 🖥️ **Dock Integration**: Open clipboard menu directly from dock icon click
 - 🎯 **Window Focus Management**: Settings window properly appears in current space without forcing to front of full screen apps
 

@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Optimized Quick Look preview initialization process for better user experience
 - Enhanced loading states with progress indicators during Quick Look preparation
 - Improved Quick Look view lifecycle management for cleaner state transitions
+ - Selection mode header: moved Cancel button to the title row (top-right) and removed the Select All/None bar for a cleaner layout
+ - Header spacing: aligned the divider between search and segmented control with uniform spacing
+ - Hover behavior: limited long-item reveal on hover to maintain consistent row heights (text up to 3 lines, code up to 6 lines)
 
 ## [1.7.0] - 2025-07-28
 
