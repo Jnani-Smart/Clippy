@@ -115,7 +115,7 @@ class AutoUpdater: ObservableObject {
     
     // MARK: - Public Interface
     
-    func checkForUpdates(silent: Bool = false) async {
+    func checkForUpdates(silent: Bool = false, isManualCheck: Bool = false) async {
         guard updateState != .checking else { return }
         
         if !silent {
@@ -134,13 +134,20 @@ class AutoUpdater: ObservableObject {
                 }
             } else {
                 updateState = .idle
+                
+                // Only show "no updates" message for manual checks
+                if isManualCheck && !silent {
+                    await showNoUpdatesAlert()
+                }
             }
             
             lastCheckDate = Date()
             
         } catch {
             updateState = .error(.networkError(error))
-            if !silent {
+            
+            // Only show error alerts for manual checks, not automatic checks
+            if !silent && isManualCheck {
                 await showErrorAlert(error: error)
             }
         }
@@ -187,7 +194,7 @@ class AutoUpdater: ObservableObject {
         checkTimer?.invalidate()
         checkTimer = Timer.scheduledTimer(withTimeInterval: checkInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in
-                await self?.checkForUpdates(silent: false)
+                await self?.checkForUpdates(silent: false, isManualCheck: false)
             }
         }
         
@@ -195,13 +202,13 @@ class AutoUpdater: ObservableObject {
         if let lastCheck = lastCheckDate,
            Date().timeIntervalSince(lastCheck) > 86400 {
             Task {
-                await checkForUpdates(silent: false)
+                await checkForUpdates(silent: false, isManualCheck: false)
             }
         } else if lastCheckDate == nil {
             // First run - check after a short delay
             Task {
                 try? await Task.sleep(nanoseconds: 5_000_000_000) // 5 seconds
-                await checkForUpdates(silent: false)
+                await checkForUpdates(silent: false, isManualCheck: false)
             }
         }
     }

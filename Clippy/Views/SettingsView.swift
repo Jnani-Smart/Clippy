@@ -173,7 +173,7 @@ struct SettingsView: View {
     
     private func checkForUpdates() {
         Task {
-            await autoUpdater.checkForUpdates(silent: false)
+            await autoUpdater.checkForUpdates(silent: false, isManualCheck: true)
         }
     }
     
