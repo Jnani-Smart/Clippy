@@ -41,12 +41,13 @@ struct VisualEffectView: NSViewRepresentable {
 struct ClipboardView: View {
     @ObservedObject var clipboardManager: ClipboardManager
     @EnvironmentObject var appDelegate: ClipboardAppDelegate
+    @ObservedObject var pasteQueueManager = PasteQueueManager.shared
     @State private var searchText = ""
     @State private var hoveredItemId: UUID? = nil
     @State private var isClearing = false
     @State private var trashFilled = false
     @Environment(\.colorScheme) private var colorScheme
-    @State private var segmentedSelection = 0 // 0 = Recent, 1 = Pinned
+    @State private var segmentedSelection = 0 // 0 = Recent, 1 = Pinned, 2 = Queue
     @State private var isExporting = false
     @State private var isImporting = false
     @State private var isSettingsOpening = false
@@ -86,7 +87,17 @@ struct ClipboardView: View {
     // Add caching for filtered items
     private var filteredItems: [ClipboardItem] {
         // Get the appropriate items based on the current tab
-        let sourceItems = segmentedSelection == 0 ? clipboardManager.clipboardItems : clipboardManager.pinnedItems
+        let sourceItems: [ClipboardItem]
+        switch segmentedSelection {
+        case 0:
+            sourceItems = clipboardManager.clipboardItems
+        case 1:
+            sourceItems = clipboardManager.pinnedItems
+        case 2:
+            sourceItems = pasteQueueManager.queueItems
+        default:
+            sourceItems = clipboardManager.clipboardItems
+        }
         
         // Use the ClipboardManager's filter method for consistent filtering
         return clipboardManager.filterItems(
@@ -280,6 +291,7 @@ struct ClipboardView: View {
                 HStack(spacing: 1) {
                     tabButton(index: 0, icon: "clock.fill", label: "Recent")
                     tabButton(index: 1, icon: "pin.fill", label: "Pinned")
+                    queueTabButton(index: 2, icon: "list.number", label: "Queue")
                 }
                 .background(
                     RoundedRectangle(cornerRadius: 16)
@@ -292,11 +304,16 @@ struct ClipboardView: View {
                 .transition(.opacity.animation(.easeOut(duration: 0.2)))
             }
             
-            // Show either recent or pinned based on selection
-            if segmentedSelection == 0 {
+            // Show content based on selected tab
+            switch segmentedSelection {
+            case 0:
                 contentView
-            } else {
+            case 1:
                 pinnedItemsView
+            case 2:
+                queueContentView
+            default:
+                contentView
             }
             
             footerView
@@ -554,13 +571,20 @@ struct ClipboardView: View {
                 .transition(.scale(scale: 0.8).combined(with: .opacity))
             }
             
-            // Main clipboard item content with proper spacing
             ClipboardItemRow(
                 item: item,
                 isHovered: hoveredItemId == item.id,
                 showFullContent: hoveredItemId == item.id,
                 clipboardManager: clipboardManager
             )
+            .overlay(alignment: .topTrailing) {
+                // Queue position badge
+                if let position = pasteQueueManager.positionInQueue(item) {
+                    QueueBadge(position: position)
+                        .offset(x: 6, y: -6)
+                        .transition(.scale(scale: 0.5).combined(with: .opacity))
+                }
+            }
             .overlay(
                 // Selection overlay when selected - refined styling
                 selectedItems.contains(item.id) && isSelectMode ?
@@ -574,6 +598,7 @@ struct ClipboardView: View {
                 : nil
             )
             .padding(.trailing, isSelectMode ? 12 : 0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: pasteQueueManager.isInQueue(item))
         }
         .contentShape(Rectangle())
         .onTapGesture {
@@ -671,6 +696,45 @@ struct ClipboardView: View {
                     } icon: {
                         Image(systemName: "eye")
                             .symbolRenderingMode(.hierarchical)
+                    }
+                }
+            }
+            
+            Divider()
+            
+            // Paste Queue options
+            if pasteQueueManager.isInQueue(item) {
+                Button(action: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        pasteQueueManager.removeFromQueue(item)
+                    }
+                }) {
+                    Label {
+                        HStack {
+                            Text("Remove from Queue")
+                            if let position = pasteQueueManager.positionInQueue(item) {
+                                Text("(\(position))")
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    } icon: {
+                        Image(systemName: "minus.circle")
+                            .symbolRenderingMode(.hierarchical)
+                            .foregroundColor(.orange)
+                    }
+                }
+            } else {
+                Button(action: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        pasteQueueManager.addToQueue(item)
+                    }
+                }) {
+                    Label {
+                        Text("Add to Paste Queue")
+                    } icon: {
+                        Image(systemName: "list.number")
+                            .symbolRenderingMode(.hierarchical)
+                            .foregroundColor(.orange)
                     }
                 }
             }
@@ -937,6 +1001,61 @@ struct ClipboardView: View {
         }
         .buttonStyle(PlainButtonStyle())
         .animation(.spring(response: 0.2, dampingFraction: 0.7), value: segmentedSelection)
+    }
+    
+    // Helper method to create queue tab button with badge indicator
+    private func queueTabButton(index: Int, icon: String, label: String) -> some View {
+        Button(action: {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                segmentedSelection = index
+            }
+        }) {
+            HStack(spacing: 5) {
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: icon)
+                        .font(.system(size: 12, weight: segmentedSelection == index ? .semibold : .regular))
+                        .imageScale(.medium)
+                        .symbolEffect(.bounce.down, value: segmentedSelection == index)
+                    
+                    // Show badge with queue count if there are items
+                    if pasteQueueManager.itemCount > 0 {
+                        Text("\(pasteQueueManager.itemCount)")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(minWidth: 12, minHeight: 12)
+                            .background(Circle().fill(Color.orange))
+                            .offset(x: 8, y: -6)
+                    }
+                }
+                
+                Text(label)
+                    .font(.system(size: 12, weight: segmentedSelection == index ? .semibold : .medium))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 5)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(segmentedSelection == index ? 
+                          (colorScheme == .dark ? Color.orange.opacity(0.2) : Color.orange.opacity(0.15)) : 
+                          Color.clear)
+                    .shadow(color: Color.black.opacity(segmentedSelection == index ? 0.06 : 0), radius: 1, x: 0, y: 1)
+            )
+            .contentShape(Rectangle())
+            .foregroundColor(segmentedSelection == index ? .orange : .secondary)
+        }
+        .buttonStyle(PlainButtonStyle())
+        .animation(.spring(response: 0.2, dampingFraction: 0.7), value: segmentedSelection)
+        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: pasteQueueManager.itemCount)
+    }
+    
+    // Paste Queue content view
+    private var queueContentView: some View {
+        PasteQueueView(
+            pasteQueueManager: pasteQueueManager,
+            clipboardManager: clipboardManager
+        )
+        .padding(.horizontal, 8)
+        .padding(.top, 4)
     }
     
     // Function to delete selected items using existing ClipboardManager methods

@@ -4,7 +4,10 @@ import Combine
 import CryptoKit
 
 class ClipboardManager: ObservableObject {
+    static var shared: ClipboardManager!
+    
     @Published var clipboardItems: [ClipboardItem] = []
+    @Published var searchText: String = ""
     @Published var justCopied = false
     @Published var pinnedItems: [ClipboardItem] = []
     private weak var timer: Timer?
@@ -46,6 +49,7 @@ class ClipboardManager: ObservableObject {
     
     init() {
         lastChangeCount = pasteboard.changeCount
+        ClipboardManager.shared = self
         
         // Enable categories by default if the setting doesn't exist yet
         if UserDefaults.standard.object(forKey: "enableCategories") == nil {

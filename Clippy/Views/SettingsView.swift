@@ -780,6 +780,77 @@ struct SettingsView: View {
                             .foregroundColor(.secondary)
                     }
                 }
+                
+                // Paste Queue settings
+                VisionOSGroupBox(title: "Paste Queue") {
+                    VStack(alignment: .leading, spacing: 16) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Dedicated Shortcuts")
+                                .font(.system(size: 14, weight: .medium))
+                            
+                            HStack(spacing: 24) {
+                                HStack(spacing: 8) {
+                                    Text("⌃C")
+                                        .font(.system(size: 14, weight: .bold, design: .monospaced))
+                                        .foregroundColor(.orange)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 6)
+                                                .fill(Color.orange.opacity(0.15))
+                                        )
+                                    
+                                    Text("Copy to Queue")
+                                        .font(.system(size: 13))
+                                }
+                                
+                                HStack(spacing: 8) {
+                                    Text("⌃V")
+                                        .font(.system(size: 14, weight: .bold, design: .monospaced))
+                                        .foregroundColor(.orange)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 6)
+                                                .fill(Color.orange.opacity(0.15))
+                                        )
+                                    
+                                    Text("Paste Next")
+                                        .font(.system(size: 13))
+                                }
+                            }
+                        }
+                        
+                        Divider().padding(.vertical, 4)
+                        
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("How Paste Queue Works")
+                                .font(.system(size: 13, weight: .semibold))
+                            
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack(alignment: .top, spacing: 8) {
+                                    Image(systemName: "1.circle.fill")
+                                        .foregroundColor(.orange)
+                                    Text("Press ⌃C to copy items directly to the queue")
+                                        .font(.system(size: 12))
+                                }
+                                HStack(alignment: .top, spacing: 8) {
+                                    Image(systemName: "2.circle.fill")
+                                        .foregroundColor(.orange)
+                                    Text("Items are pasted in the order they were added (FIFO)")
+                                        .font(.system(size: 12))
+                                }
+                                HStack(alignment: .top, spacing: 8) {
+                                    Image(systemName: "3.circle.fill")
+                                        .foregroundColor(.orange)
+                                    Text("Press ⌃V to paste the next item from the queue")
+                                        .font(.system(size: 12))
+                                }
+                            }
+                            .foregroundColor(.secondary)
+                        }
+                    }
+                }
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 20)

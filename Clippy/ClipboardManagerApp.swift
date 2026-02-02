@@ -160,6 +160,15 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
             self?.showFloatingWindow()
         }
         
+        // Listen for "ShowClippyWindow" notification from PasteQueueManager
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name("ShowClippyWindow"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.showFloatingWindow()
+        }
+        
         // Register for notifications to update shortcuts
         NotificationCenter.default.addObserver(
             forName: Notification.Name("UpdateShortcuts"),

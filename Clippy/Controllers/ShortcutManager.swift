@@ -107,33 +107,40 @@ class ShortcutManager {
     private var hotKeyRef: EventHotKeyRef?
     private let keyCombo: KeyCombo
     private let action: () -> Void
+    private let hotKeyID: UInt32
+    
+    // Static counter to generate unique IDs for each shortcut
+    private static var nextHotKeyID: UInt32 = 1
+    private static var registeredManagers: [UInt32: ShortcutManager] = [:]
     
     init(keyCombo: KeyCombo, action: @escaping () -> Void) {
         self.keyCombo = keyCombo
         self.action = action
+        self.hotKeyID = ShortcutManager.nextHotKeyID
+        ShortcutManager.nextHotKeyID += 1
+        
+        ShortcutManager.registeredManagers[self.hotKeyID] = self
         registerShortcut()
     }
     
     deinit {
         unregisterShortcut()
+        ShortcutManager.registeredManagers.removeValue(forKey: hotKeyID)
     }
     
     private func registerShortcut() {
-        let hotKeyID = EventHotKeyID(signature: OSType(0x4B534854), id: 1)
+        let hotKeyIDStruct = EventHotKeyID(signature: OSType(0x4B534854), id: hotKeyID)
         var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
         
-        // Install the event handler
+        // Install the event handler (using static handler that dispatches to the right manager)
         InstallEventHandler(
             GetApplicationEventTarget(),
             {(handlerRef, eventRef, userData) -> OSStatus in
-                guard let userData = userData else { return noErr }
-                let manager = Unmanaged<ShortcutManager>.fromOpaque(userData).takeUnretainedValue()
-                
                 var hotkeyID = EventHotKeyID()
                 GetEventParameter(eventRef!, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), nil, MemoryLayout<EventHotKeyID>.size, nil, &hotkeyID)
                 
-                if hotkeyID.id == 1 {
-                    // Perform action on the main thread
+                // Find the manager for this hotkey ID and call its action
+                if let manager = ShortcutManager.registeredManagers[hotkeyID.id] {
                     DispatchQueue.main.async {
                         manager.action()
                     }
@@ -143,7 +150,7 @@ class ShortcutManager {
             },
             1,
             &eventType,
-            Unmanaged.passUnretained(self).toOpaque(),
+            nil,
             &eventHandler
         )
         
@@ -154,7 +161,7 @@ class ShortcutManager {
         let registerResult = RegisterEventHotKey(
             keyCode,
             modifiers,
-            hotKeyID,
+            hotKeyIDStruct,
             GetApplicationEventTarget(),
             0,
             &hotKeyRef
