@@ -303,26 +303,13 @@ struct ClipboardView: View {
     
     // Break view into smaller components for better performance
     private var mainContentView: some View {
-        ZStack(alignment: .bottom) {
+        ZStack {
             VStack(spacing: 0) {
                 headerView
                 
-                // Custom VisionOS-style segmented control - hidden in selection mode
+                // Spacer for floating tab bar
                 if !isSelectMode {
-                    HStack(spacing: 1) {
-                        tabButton(index: 0, icon: "clock.fill", label: "Recent")
-                        tabButton(index: 1, icon: "pin.fill", label: "Pinned")
-                        queueTabButton(index: 2, icon: "list.number", label: "Queue")
-                    }
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color.primary.opacity(colorScheme == .dark ? 0.07 : 0.04))
-                            .shadow(color: Color.black.opacity(0.04), radius: 1, x: 0, y: 1)
-                    )
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 4)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: segmentedSelection)
-                    .transition(.opacity.animation(.easeOut(duration: 0.2)))
+                    Color.clear.frame(height: 36)
                 }
                 
                 // Show content based on selected tab
@@ -340,26 +327,54 @@ struct ClipboardView: View {
                 footerView
             }
             
-            // Floating Control+V pill for Queue tab
-            if segmentedSelection == 2 && pasteQueueManager.itemCount > 0 {
-                Text("⌃V to paste next")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundColor(.orange)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 5)
+            // Floating segmented control at top
+            VStack {
+                if !isSelectMode {
+                    HStack(spacing: 1) {
+                        tabButton(index: 0, icon: "clock.fill", label: "Recent")
+                        tabButton(index: 1, icon: "pin.fill", label: "Pinned")
+                        queueTabButton(index: 2, icon: "list.number", label: "Queue")
+                    }
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 3)
                     .background(
-                        Capsule()
+                        RoundedRectangle(cornerRadius: 16)
                             .fill(.ultraThinMaterial)
-                            .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
+                            .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 4)
                     )
                     .overlay(
-                        Capsule()
-                            .strokeBorder(Color.orange.opacity(0.3), lineWidth: 0.5)
+                        RoundedRectangle(cornerRadius: 16)
+                            .strokeBorder(Color.white.opacity(colorScheme == .dark ? 0.1 : 0.3), lineWidth: 0.5)
                     )
-                    .padding(.bottom, 42)
-                    .transition(.opacity.combined(with: .scale(scale: 0.9)).combined(with: .move(edge: .bottom)))
-                    .animation(.spring(response: 0.35, dampingFraction: 0.7), value: pasteQueueManager.itemCount > 0)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 75) // Position below header
+                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: segmentedSelection)
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)).animation(.easeOut(duration: 0.2)))
+                }
+                
+                Spacer()
+                
+                // Floating Control+V pill for Queue tab
+                if segmentedSelection == 2 && pasteQueueManager.itemCount > 0 {
+                    Text("⌃V to paste next")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.orange)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 5)
+                        .background(
+                            Capsule()
+                                .fill(.ultraThinMaterial)
+                                .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
+                        )
+                        .overlay(
+                            Capsule()
+                                .strokeBorder(Color.orange.opacity(0.3), lineWidth: 0.5)
+                        )
+                        .padding(.bottom, 42)
+                        .transition(.opacity.combined(with: .scale(scale: 0.9)).combined(with: .move(edge: .bottom)))
+                }
             }
+            .animation(.spring(response: 0.35, dampingFraction: 0.7), value: pasteQueueManager.itemCount > 0)
         }
         .frame(width: 320, height: 400)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSelectMode)
