@@ -84,8 +84,8 @@ struct PasteQueueView: View {
                         ))
                 }
             }
-            .padding(.top, 6)
-            .padding(.bottom, 8)
+            .padding(.top, 100) // Floating header + tab bar space
+            .padding(.bottom, 55) // Floating footer pill space
             .padding(.horizontal, 8)
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.85), value: pasteQueueManager.queueItems.map { $0.id })

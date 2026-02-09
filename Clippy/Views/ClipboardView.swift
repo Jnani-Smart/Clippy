@@ -304,31 +304,24 @@ struct ClipboardView: View {
     // Break view into smaller components for better performance
     private var mainContentView: some View {
         ZStack {
-            VStack(spacing: 0) {
-                headerView
-                
-                // Spacer for floating tab bar
-                if !isSelectMode {
-                    Color.clear.frame(height: 36)
-                }
-                
-                // Show content based on selected tab
-                switch segmentedSelection {
-                case 0:
-                    contentView
-                case 1:
-                    pinnedItemsView
-                case 2:
-                    queueContentView
-                default:
-                    contentView
-                }
-                
-                footerView
+            // Content fills entire space, scrolls behind floating elements
+            switch segmentedSelection {
+            case 0:
+                contentView
+            case 1:
+                pinnedItemsView
+            case 2:
+                queueContentView
+            default:
+                contentView
             }
             
-            // Floating segmented control at top
-            VStack {
+            // Floating UI overlay
+            VStack(spacing: 0) {
+                // Floating header with blur
+                floatingHeaderView
+                
+                // Floating segmented control (just below header divider)
                 if !isSelectMode {
                     HStack(spacing: 1) {
                         tabButton(index: 0, icon: "clock.fill", label: "Recent")
@@ -339,15 +332,15 @@ struct ClipboardView: View {
                     .padding(.vertical, 3)
                     .background(
                         RoundedRectangle(cornerRadius: 16)
-                            .fill(.ultraThinMaterial)
-                            .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 4)
+                            .fill(.thickMaterial)
+                            .shadow(color: Color.black.opacity(0.1), radius: 6, x: 0, y: 3)
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
-                            .strokeBorder(Color.white.opacity(colorScheme == .dark ? 0.1 : 0.3), lineWidth: 0.5)
+                            .strokeBorder(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.2), lineWidth: 0.5)
                     )
                     .padding(.horizontal, 16)
-                    .padding(.top, 75) // Position below header
+                    .padding(.top, 4)
                     .animation(.spring(response: 0.3, dampingFraction: 0.7), value: segmentedSelection)
                     .transition(.opacity.combined(with: .scale(scale: 0.95)).animation(.easeOut(duration: 0.2)))
                 }
@@ -363,16 +356,19 @@ struct ClipboardView: View {
                         .padding(.vertical, 5)
                         .background(
                             Capsule()
-                                .fill(.ultraThinMaterial)
+                                .fill(.thickMaterial)
                                 .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
                         )
                         .overlay(
                             Capsule()
                                 .strokeBorder(Color.orange.opacity(0.3), lineWidth: 0.5)
                         )
-                        .padding(.bottom, 42)
+                        .padding(.bottom, 8)
                         .transition(.opacity.combined(with: .scale(scale: 0.9)).combined(with: .move(edge: .bottom)))
                 }
+                
+                // Floating footer with blur
+                floatingFooterView
             }
             .animation(.spring(response: 0.35, dampingFraction: 0.7), value: pasteQueueManager.itemCount > 0)
         }
@@ -397,6 +393,179 @@ struct ClipboardView: View {
         } message: {
             Text("Permanently delete \(filteredItems.count) clipboard items? This action cannot be undone.")
         }
+    }
+    
+    // Floating header with blur background
+    private var floatingHeaderView: some View {
+        VStack(spacing: 2) {
+            ZStack {
+                Text("Clippy")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .frame(maxWidth: .infinity, alignment: .center)
+
+                if isSelectMode {
+                    HStack {
+                        Spacer()
+                        Button(action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                isSelectMode = false
+                                selectedItems.removeAll()
+                            }
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 10, weight: .medium))
+                                    .frame(width: 12, height: 12)
+                                Text("Cancel")
+                                    .font(.system(size: 11, weight: .medium))
+                            }
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(.thickMaterial)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(Color.secondary.opacity(0.2), lineWidth: 0.5)
+                            )
+                        }
+                        .buttonStyle(BorderlessButtonStyle())
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+
+            SearchBar(text: $searchText, showCategoryBar: $showCategoryBar, selectedCategory: $selectedCategory)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 2)
+
+            // Category filter bar with visibility control
+            if showCategoryBar {
+                categoryFilterBar
+                    .padding(.horizontal, 16)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSelectMode)
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showCategoryBar)
+    }
+    
+    // Floating footer with blur background
+    private var floatingFooterView: some View {
+        HStack {
+            // Dual-function trash button with hover and animation
+            Button(action: {
+                if segmentedSelection == 2 {
+                    // Queue tab: animate trash and clear queue
+                    triggerTrashAnimation()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            pasteQueueManager.clearQueue()
+                        }
+                    }
+                } else if isSelectMode {
+                    if !selectedItems.isEmpty {
+                        // Delete selected items - animate trash
+                        triggerTrashAnimation()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                deleteSelectedItems()
+                            }
+                        }
+                    } else {
+                        // Show confirmation alert for Clear All functionality
+                        showClearAllConfirmation = true
+                    }
+                } else {
+                    // Activate selection mode when not in selection mode with smooth transition
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                        isSelectMode = true
+                    }
+                }
+            }) {
+                HStack(spacing: 4) {
+                    // Trash icon with skeuomorphic shake animation
+                    Image(systemName: trashAnimationPhase > 0 ? "trash.fill" : "trash")
+                        .font(.system(size: 12, weight: .medium))
+                        .imageScale(.medium)
+                        .foregroundColor(getClearButtonColor())
+                        .rotationEffect(.degrees(trashAnimationPhase == 1 ? -15 : (trashAnimationPhase == 2 ? 15 : 0)))
+                        .scaleEffect(trashAnimationPhase > 0 ? 1.2 : 1.0)
+                    
+                    Text(getTrashButtonText())
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(getClearButtonColor())
+                        .id("trash-button-text-\(getTrashButtonText())")
+                        .transition(.asymmetric(
+                            insertion: .opacity.combined(with: .scale(scale: 0.9)).animation(.easeOut(duration: 0.15)),
+                            removal: .opacity.combined(with: .scale(scale: 1.1)).animation(.easeIn(duration: 0.1))
+                        ))
+                }
+                .scaleEffect(isClearButtonHovered ? 1.05 : 1.0)
+            }
+            .buttonStyle(BorderlessButtonStyle())
+            .disabled(segmentedSelection == 2 && pasteQueueManager.queueItems.isEmpty)
+            .opacity(segmentedSelection == 2 && pasteQueueManager.queueItems.isEmpty ? 0.5 : 1)
+            .onHover { isHovered in
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    isClearButtonHovered = isHovered
+                }
+            }
+            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isClearButtonHovered)
+            .animation(.spring(response: 0.15, dampingFraction: 0.5), value: trashAnimationPhase)
+            
+            Spacer()
+            
+            // Settings button
+            Button(action: {
+                guard !isSettingsOpening else { return }
+                isSettingsOpening = true
+                appDelegate.openSettings()
+                // Reset after a short delay
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    isSettingsOpening = false
+                }
+            }) {
+                Image(systemName: "gear")
+                    .font(.system(size: 14, weight: .medium))
+                    .imageScale(.medium)
+                    .opacity(isSettingsOpening ? 0.7 : 1.0)
+            }
+            .buttonStyle(BorderlessButtonStyle())
+            .disabled(isSettingsOpening)
+            
+            // Simple item count
+            if segmentedSelection == 2 {
+                Text("\(pasteQueueManager.itemCount) items")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            } else if isSelectMode {
+                Text("\(selectedItems.count)/\(filteredItems.count)")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            } else {
+                Text("\(filteredItems.count) items")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.thickMaterial)
+                .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 4)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .strokeBorder(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.2), lineWidth: 0.5)
+        )
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
     }
     
     private var headerView: some View {
@@ -596,8 +765,8 @@ struct ClipboardView: View {
                         ))
                 }
             }
-            .padding(.top, 6)
-            .padding(.bottom, 8)
+            .padding(.top, isSelectMode ? 65 : 100) // Floating header + tab bar space
+            .padding(.bottom, 55) // Floating footer pill space
             .padding(.horizontal, isSelectMode ? 0 : 8)
             .animation(.spring(response: 0.25, dampingFraction: 0.75), value: filteredItems.map { $0.id })
             .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSelectMode)
@@ -1085,8 +1254,8 @@ struct ClipboardView: View {
                                 ))
                         }
                     }
-                    .padding(.top, 6)
-                    .padding(.bottom, 8)
+                    .padding(.top, 100) // Floating header + tab bar space
+                    .padding(.bottom, 55) // Floating footer pill space
                     .padding(.horizontal, 8)
                     .animation(.spring(response: 0.25, dampingFraction: 0.75), value: filteredItems.map { $0.id })
                 }
