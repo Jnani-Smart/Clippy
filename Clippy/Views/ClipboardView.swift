@@ -320,25 +320,30 @@ struct ClipboardView: View {
             }
             .mask(
                 VStack(spacing: 0) {
-                    // Top fade - hides content as it scrolls up
+                    // Solid invisible zone - completely hides content behind header + search bar
+                    Rectangle()
+                        .fill(Color.clear)
+                        .frame(height: isSelectMode ? 55 : 65)
+                    
+                    // Short gradient fade - content fades in just before segmented bar ends
                     LinearGradient(
                         colors: [.clear, .black],
                         startPoint: .top,
                         endPoint: .bottom
                     )
-                    .frame(height: isSelectMode ? 65 : 100)
+                    .frame(height: 35)
                     
                     // Fully visible area
                     Rectangle()
                         .fill(Color.black)
                     
-                    // Bottom fade - hides content as it scrolls down
+                    // Bottom fade - hides content as it approaches footer
                     LinearGradient(
                         colors: [.black, .clear],
                         startPoint: .top,
                         endPoint: .bottom
                     )
-                    .frame(height: 55)
+                    .frame(height: 50)
                 }
             )
             
