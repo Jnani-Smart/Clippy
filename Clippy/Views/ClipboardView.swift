@@ -305,16 +305,42 @@ struct ClipboardView: View {
     private var mainContentView: some View {
         ZStack {
             // Content fills entire space, scrolls behind floating elements
-            switch segmentedSelection {
-            case 0:
-                contentView
-            case 1:
-                pinnedItemsView
-            case 2:
-                queueContentView
-            default:
-                contentView
+            // Apply gradient mask to fade content at top and bottom edges
+            Group {
+                switch segmentedSelection {
+                case 0:
+                    contentView
+                case 1:
+                    pinnedItemsView
+                case 2:
+                    queueContentView
+                default:
+                    contentView
+                }
             }
+            .mask(
+                VStack(spacing: 0) {
+                    // Top fade - hides content as it scrolls up
+                    LinearGradient(
+                        colors: [.clear, .black],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: isSelectMode ? 65 : 100)
+                    
+                    // Fully visible area
+                    Rectangle()
+                        .fill(Color.black)
+                    
+                    // Bottom fade - hides content as it scrolls down
+                    LinearGradient(
+                        colors: [.black, .clear],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: 55)
+                }
+            )
             
             // Floating UI overlay
             VStack(spacing: 0) {
@@ -372,6 +398,7 @@ struct ClipboardView: View {
             }
             .animation(.spring(response: 0.35, dampingFraction: 0.7), value: pasteQueueManager.itemCount > 0)
         }
+        .clipped() // Ensure nothing renders outside bounds
         .frame(width: 320, height: 400)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSelectMode)
         .alert("Clear All Items", isPresented: $showClearAllConfirmation) {
