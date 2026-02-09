@@ -819,7 +819,12 @@ struct ClipboardView: View {
             HStack {
                 // Dual-function trash button
                 Button(action: {
-                    if isSelectMode {
+                    if segmentedSelection == 2 {
+                        // Queue tab: clear queue
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            pasteQueueManager.clearQueue()
+                        }
+                    } else if isSelectMode {
                         if !selectedItems.isEmpty {
                             // Delete selected items when in selection mode with items selected
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
@@ -840,12 +845,12 @@ struct ClipboardView: View {
                         Image(systemName: "trash")
                             .font(.system(size: 12, weight: .medium))
                             .imageScale(.medium)
-                            .foregroundColor(isSelectMode && selectedItems.isEmpty ? .red : .primary)
+                            .foregroundColor(segmentedSelection == 2 ? .orange : (isSelectMode && selectedItems.isEmpty ? .red : .primary))
                         
-                        Text(getTrashButtonText())
+                        Text(segmentedSelection == 2 ? "Clear Queue" : getTrashButtonText())
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(isSelectMode && selectedItems.isEmpty ? .red : .primary)
-                            .id("trash-button-text-\(getTrashButtonText())")
+                            .foregroundColor(segmentedSelection == 2 ? .orange : (isSelectMode && selectedItems.isEmpty ? .red : .primary))
+                            .id("trash-button-text-\(segmentedSelection == 2 ? "clearqueue" : getTrashButtonText())")
                             .transition(.asymmetric(
                                 insertion: .opacity.combined(with: .scale(scale: 0.9)).animation(.easeOut(duration: 0.15)),
                                 removal: .opacity.combined(with: .scale(scale: 1.1)).animation(.easeIn(duration: 0.1))
@@ -855,17 +860,20 @@ struct ClipboardView: View {
                     .padding(.vertical, 6)
                     .background(
                         RoundedRectangle(cornerRadius: 8)
-                            .fill(isSelectMode && selectedItems.isEmpty ? Color.red.opacity(0.1) : Color.clear)
+                            .fill(segmentedSelection == 2 ? Color.orange.opacity(0.1) : (isSelectMode && selectedItems.isEmpty ? Color.red.opacity(0.1) : Color.clear))
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
-                            .stroke(isSelectMode && selectedItems.isEmpty ? Color.red.opacity(0.3) : Color.clear, lineWidth: 1)
+                            .stroke(segmentedSelection == 2 ? Color.orange.opacity(0.3) : (isSelectMode && selectedItems.isEmpty ? Color.red.opacity(0.3) : Color.clear), lineWidth: 1)
                     )
                 }
                 .buttonStyle(BorderlessButtonStyle())
                 .padding(.horizontal)
+                .disabled(segmentedSelection == 2 && pasteQueueManager.queueItems.isEmpty)
+                .opacity(segmentedSelection == 2 && pasteQueueManager.queueItems.isEmpty ? 0.5 : 1)
                 .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSelectMode)
                 .animation(.spring(response: 0.3, dampingFraction: 0.8), value: selectedItems.isEmpty)
+                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: segmentedSelection)
                 
                 Spacer()
                 
@@ -888,7 +896,23 @@ struct ClipboardView: View {
                 .disabled(isSettingsOpening)
                 
                 // Display the count of filtered items, or selected items count during selection mode
-                if isSelectMode {
+                if segmentedSelection == 2 {
+                    // Queue tab: show queue count with paste hint
+                    HStack(spacing: 4) {
+                        Image(systemName: "list.number")
+                            .font(.system(size: 10))
+                            .foregroundColor(.orange)
+                        Text("\(pasteQueueManager.itemCount) in queue")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                        if pasteQueueManager.itemCount > 0 {
+                            Text("• ⌃V paste")
+                                .font(.system(size: 10))
+                                .foregroundColor(.orange.opacity(0.8))
+                        }
+                    }
+                    .padding(.horizontal, 10)
+                } else if isSelectMode {
                     Text("\(selectedItems.count) of \(filteredItems.count) selected")
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
@@ -1072,8 +1096,6 @@ struct ClipboardView: View {
             pasteQueueManager: pasteQueueManager,
             clipboardManager: clipboardManager
         )
-        .padding(.horizontal, 8)
-        .padding(.top, 4)
     }
     
     // Function to delete selected items using existing ClipboardManager methods
