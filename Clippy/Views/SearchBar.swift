@@ -69,12 +69,13 @@ struct SearchBar: View {
             .help("Toggle Category Filter")
         }
         .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color.primary.opacity(colorScheme == .dark ? 0.12 : 0.06))
+            RoundedRectangle(cornerRadius: 12)
+                .fill(.thickMaterial)
+                .shadow(color: Color.black.opacity(0.08), radius: 4, x: 0, y: 2)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(Color.primary.opacity(colorScheme == .dark ? 0.15 : 0.1), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.2), lineWidth: 0.5)
         )
     }
 } 

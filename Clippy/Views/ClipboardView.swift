@@ -699,15 +699,22 @@ struct ClipboardView: View {
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(selectedCategory == category ? .white : .primary)
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(selectedCategory == category ? Color.accentColor : Color.clear)
-            )
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background {
+                if selectedCategory == category {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.accentColor)
+                        .shadow(color: Color.black.opacity(0.12), radius: 3, x: 0, y: 2)
+                } else {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(.thickMaterial)
+                        .shadow(color: Color.black.opacity(0.06), radius: 3, x: 0, y: 2)
+                }
+            }
             .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(selectedCategory == category ? Color.accentColor : Color.secondary.opacity(0.2), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 10)
+                    .strokeBorder(selectedCategory == category ? Color.accentColor : Color.white.opacity(colorScheme == .dark ? 0.08 : 0.15), lineWidth: 0.5)
             )
         }
         .buttonStyle(BorderlessButtonStyle())
