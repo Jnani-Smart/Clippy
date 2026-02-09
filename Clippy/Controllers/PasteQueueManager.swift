@@ -231,8 +231,13 @@ class PasteQueueManager: ObservableObject {
         // Copy the current item to pasteboard
         copyItemToPasteboard(item)
         
-        // Hide the Clippy window first so paste goes to the right app
-        hideClippyWindow()
+        // Check if this is the last item - only hide window if queue will be empty after paste
+        let isLastItem = queueItems.count <= 1
+        
+        if isLastItem {
+            // Hide the Clippy window only when pasting the last item
+            hideClippyWindow()
+        }
         
         // Simulate paste after a short delay
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
@@ -241,6 +246,11 @@ class PasteQueueManager: ObservableObject {
             // Advance to next item after paste
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
                 self?.advanceQueue()
+                
+                // Re-show the window if there are still items remaining
+                if let self = self, !self.queueItems.isEmpty {
+                    NotificationCenter.default.post(name: Notification.Name("ShowClippyWindow"), object: nil)
+                }
             }
         }
         
