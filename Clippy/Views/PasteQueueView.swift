@@ -59,27 +59,36 @@ struct PasteQueueView: View {
     private var queueListView: some View {
         ScrollView {
             LazyVStack(spacing: 4) {
-                ForEach(Array(pasteQueueManager.queueItems.enumerated()), id: \.element.id) { index, item in
+                ForEach(pasteQueueManager.queueItems) { item in
+                    let index = pasteQueueManager.queueItems.firstIndex(where: { $0.id == item.id }) ?? 0
                     queueItemRow(item: item, index: index)
+                        .opacity(draggingItem?.id == item.id ? 0.3 : 1.0)
+                        .blur(radius: draggingItem?.id == item.id ? 2 : 0)
                         .onDrag {
-                            self.draggingItem = item
-                            return NSItemProvider(object: item.id.uuidString as NSString)
+                            withAnimation(.easeOut(duration: 0.15)) {
+                                self.draggingItem = item
+                            }
+                            
+                            // Create a proper drag item with the text preview
+                            let itemProvider = NSItemProvider()
+                            itemProvider.registerDataRepresentation(forTypeIdentifier: "public.text", visibility: .all) { completion in
+                                let data = item.preview.data(using: .utf8) ?? Data()
+                                completion(data, nil)
+                                return nil
+                            }
+                            return itemProvider
                         }
-                        .onDrop(of: [.text], delegate: QueueDropDelegate(
+                        .onDrop(of: ["public.text"], delegate: QueueDropDelegate(
                             item: item,
                             items: $pasteQueueManager.queueItems,
                             draggingItem: $draggingItem
-                        ))
-                        .transition(.asymmetric(
-                            insertion: .opacity.combined(with: .scale(scale: 0.96, anchor: .center)),
-                            removal: .opacity.combined(with: .scale(scale: 0.94, anchor: .center))
                         ))
                 }
             }
             .padding(.top, 6)
             .padding(.bottom, 8)
             .padding(.horizontal, 8)
-            .animation(.spring(response: 0.3, dampingFraction: 0.75), value: pasteQueueManager.queueItems.map { $0.id })
+            .animation(.spring(response: 0.35, dampingFraction: 0.85), value: pasteQueueManager.queueItems.map { $0.id })
         }
     }
     
@@ -170,8 +179,6 @@ struct PasteQueueView: View {
                     lineWidth: 0.5
                 )
         )
-        .scaleEffect(draggingItem?.id == item.id ? 1.02 : 1.0)
-        .opacity(draggingItem?.id == item.id ? 0.7 : 1.0)
         .contentShape(Rectangle())
         .onHover { isHovered in
             withAnimation(.easeInOut(duration: 0.15)) {
@@ -219,25 +226,35 @@ struct QueueDropDelegate: DropDelegate {
     @Binding var draggingItem: ClipboardItem?
     
     func performDrop(info: DropInfo) -> Bool {
-        draggingItem = nil
+        withAnimation(.easeOut(duration: 0.2)) {
+            draggingItem = nil
+        }
         return true
     }
     
     func dropEntered(info: DropInfo) {
         guard let draggingItem = draggingItem,
-              draggingItem.id != item.id,
-              let fromIndex = items.firstIndex(where: { $0.id == draggingItem.id }),
+              draggingItem.id != item.id else {
+            return
+        }
+        
+        guard let fromIndex = items.firstIndex(where: { $0.id == draggingItem.id }),
               let toIndex = items.firstIndex(where: { $0.id == item.id }) else {
             return
         }
         
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+        // Perform smooth reordering with spring animation
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
             items.move(fromOffsets: IndexSet(integer: fromIndex), toOffset: toIndex > fromIndex ? toIndex + 1 : toIndex)
         }
     }
     
     func dropUpdated(info: DropInfo) -> DropProposal? {
         return DropProposal(operation: .move)
+    }
+    
+    func validateDrop(info: DropInfo) -> Bool {
+        return true
     }
 }
 
