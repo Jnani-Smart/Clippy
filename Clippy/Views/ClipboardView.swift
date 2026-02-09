@@ -279,6 +279,24 @@ struct ClipboardView: View {
                 keyEventMonitor = nil
             }
         }
+        // Monitor Queue Mode state changes reliably from the root view
+        .onAppear {
+            // Check initial state when window opens
+            if pasteQueueManager.isQueueModeActive {
+                segmentedSelection = 2
+            }
+        }
+        .onChange(of: pasteQueueManager.isQueueModeActive) { isActive in
+            if isActive {
+                withAnimation {
+                    segmentedSelection = 2 // Switch to Queue tab
+                }
+            } else {
+                withAnimation {
+                    segmentedSelection = 0 // Switch to Recent tab
+                }
+            }
+        }
     }
     
     // Break view into smaller components for better performance
