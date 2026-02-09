@@ -59,8 +59,7 @@ struct PasteQueueView: View {
     private var queueListView: some View {
         ScrollView {
             LazyVStack(spacing: 4) {
-                ForEach(pasteQueueManager.queueItems) { item in
-                    let index = pasteQueueManager.queueItems.firstIndex(where: { $0.id == item.id }) ?? 0
+                ForEach(Array(pasteQueueManager.queueItems.enumerated()), id: \.element.id) { index, item in
                     queueItemRow(item: item, index: index)
                         .opacity(draggingItem?.id == item.id ? 0.3 : 1.0)
                         .blur(radius: draggingItem?.id == item.id ? 2 : 0)
@@ -88,8 +87,8 @@ struct PasteQueueView: View {
             .padding(.top, 6)
             .padding(.bottom, 8)
             .padding(.horizontal, 8)
-            .animation(.spring(response: 0.35, dampingFraction: 0.85), value: pasteQueueManager.queueItems.map { $0.id })
         }
+        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: pasteQueueManager.queueItems.map { $0.id })
     }
     
     // MARK: - Queue Item Row (consistent styling with ClipboardItemRow)

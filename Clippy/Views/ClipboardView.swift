@@ -63,6 +63,8 @@ struct ClipboardView: View {
     @State private var quickLookOpacity: Double = 0.0
     @State private var isQuickLookContentReady = false
     @State private var showClearAllConfirmation = false
+    @State private var isClearButtonHovered = false
+    @State private var trashAnimationPhase = 0
     
     // Add the timeAgo function right here, before it's used
     private func timeAgo(from date: Date) -> String {
@@ -301,40 +303,63 @@ struct ClipboardView: View {
     
     // Break view into smaller components for better performance
     private var mainContentView: some View {
-        VStack(spacing: 0) {
-            headerView
-            
-            // Custom VisionOS-style segmented control - hidden in selection mode
-            if !isSelectMode {
-                HStack(spacing: 1) {
-                    tabButton(index: 0, icon: "clock.fill", label: "Recent")
-                    tabButton(index: 1, icon: "pin.fill", label: "Pinned")
-                    queueTabButton(index: 2, icon: "list.number", label: "Queue")
+        ZStack(alignment: .bottom) {
+            VStack(spacing: 0) {
+                headerView
+                
+                // Custom VisionOS-style segmented control - hidden in selection mode
+                if !isSelectMode {
+                    HStack(spacing: 1) {
+                        tabButton(index: 0, icon: "clock.fill", label: "Recent")
+                        tabButton(index: 1, icon: "pin.fill", label: "Pinned")
+                        queueTabButton(index: 2, icon: "list.number", label: "Queue")
+                    }
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.primary.opacity(colorScheme == .dark ? 0.07 : 0.04))
+                            .shadow(color: Color.black.opacity(0.04), radius: 1, x: 0, y: 1)
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 4)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: segmentedSelection)
+                    .transition(.opacity.animation(.easeOut(duration: 0.2)))
                 }
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color.primary.opacity(colorScheme == .dark ? 0.07 : 0.04))
-                        .shadow(color: Color.black.opacity(0.04), radius: 1, x: 0, y: 1)
-                )
-                .padding(.horizontal, 16)
-                .padding(.vertical, 4)
-                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: segmentedSelection)
-                .transition(.opacity.animation(.easeOut(duration: 0.2)))
+                
+                // Show content based on selected tab
+                switch segmentedSelection {
+                case 0:
+                    contentView
+                case 1:
+                    pinnedItemsView
+                case 2:
+                    queueContentView
+                default:
+                    contentView
+                }
+                
+                footerView
             }
             
-            // Show content based on selected tab
-            switch segmentedSelection {
-            case 0:
-                contentView
-            case 1:
-                pinnedItemsView
-            case 2:
-                queueContentView
-            default:
-                contentView
+            // Floating Control+V pill for Queue tab
+            if segmentedSelection == 2 && pasteQueueManager.itemCount > 0 {
+                Text("⌃V to paste next")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(.orange)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 5)
+                    .background(
+                        Capsule()
+                            .fill(.ultraThinMaterial)
+                            .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
+                    )
+                    .overlay(
+                        Capsule()
+                            .strokeBorder(Color.orange.opacity(0.3), lineWidth: 0.5)
+                    )
+                    .padding(.bottom, 42)
+                    .transition(.opacity.combined(with: .scale(scale: 0.9)).combined(with: .move(edge: .bottom)))
+                    .animation(.spring(response: 0.35, dampingFraction: 0.7), value: pasteQueueManager.itemCount > 0)
             }
-            
-            footerView
         }
         .frame(width: 320, height: 400)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSelectMode)
@@ -817,18 +842,24 @@ struct ClipboardView: View {
             Divider()
             
             HStack {
-                // Dual-function trash button
+                // Dual-function trash button with hover and animation
                 Button(action: {
                     if segmentedSelection == 2 {
-                        // Queue tab: clear queue
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                            pasteQueueManager.clearQueue()
+                        // Queue tab: animate trash and clear queue
+                        triggerTrashAnimation()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                pasteQueueManager.clearQueue()
+                            }
                         }
                     } else if isSelectMode {
                         if !selectedItems.isEmpty {
-                            // Delete selected items when in selection mode with items selected
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                deleteSelectedItems()
+                            // Delete selected items - animate trash
+                            triggerTrashAnimation()
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                    deleteSelectedItems()
+                                }
                             }
                         } else {
                             // Show confirmation alert for Clear All functionality
@@ -842,15 +873,18 @@ struct ClipboardView: View {
                     }
                 }) {
                     HStack(spacing: 4) {
-                        Image(systemName: "trash")
+                        // Trash icon with skeuomorphic shake animation
+                        Image(systemName: trashAnimationPhase > 0 ? "trash.fill" : "trash")
                             .font(.system(size: 12, weight: .medium))
                             .imageScale(.medium)
-                            .foregroundColor(segmentedSelection == 2 ? .orange : (isSelectMode && selectedItems.isEmpty ? .red : .primary))
+                            .foregroundColor(getClearButtonColor())
+                            .rotationEffect(.degrees(trashAnimationPhase == 1 ? -15 : (trashAnimationPhase == 2 ? 15 : 0)))
+                            .scaleEffect(trashAnimationPhase > 0 ? 1.2 : 1.0)
                         
-                        Text(segmentedSelection == 2 ? "Clear Queue" : getTrashButtonText())
+                        Text(getTrashButtonText())
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(segmentedSelection == 2 ? .orange : (isSelectMode && selectedItems.isEmpty ? .red : .primary))
-                            .id("trash-button-text-\(segmentedSelection == 2 ? "clearqueue" : getTrashButtonText())")
+                            .foregroundColor(getClearButtonColor())
+                            .id("trash-button-text-\(getTrashButtonText())")
                             .transition(.asymmetric(
                                 insertion: .opacity.combined(with: .scale(scale: 0.9)).animation(.easeOut(duration: 0.15)),
                                 removal: .opacity.combined(with: .scale(scale: 1.1)).animation(.easeIn(duration: 0.1))
@@ -859,21 +893,26 @@ struct ClipboardView: View {
                     .padding(.horizontal, 8)
                     .padding(.vertical, 6)
                     .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(segmentedSelection == 2 ? Color.orange.opacity(0.1) : (isSelectMode && selectedItems.isEmpty ? Color.red.opacity(0.1) : Color.clear))
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(getClearButtonBackground())
                     )
                     .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(segmentedSelection == 2 ? Color.orange.opacity(0.3) : (isSelectMode && selectedItems.isEmpty ? Color.red.opacity(0.3) : Color.clear), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(getClearButtonBorder(), lineWidth: 1)
                     )
+                    .scaleEffect(isClearButtonHovered ? 1.05 : 1.0)
                 }
                 .buttonStyle(BorderlessButtonStyle())
                 .padding(.horizontal)
                 .disabled(segmentedSelection == 2 && pasteQueueManager.queueItems.isEmpty)
                 .opacity(segmentedSelection == 2 && pasteQueueManager.queueItems.isEmpty ? 0.5 : 1)
-                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSelectMode)
-                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: selectedItems.isEmpty)
-                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: segmentedSelection)
+                .onHover { isHovered in
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        isClearButtonHovered = isHovered
+                    }
+                }
+                .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isClearButtonHovered)
+                .animation(.spring(response: 0.15, dampingFraction: 0.5), value: trashAnimationPhase)
                 
                 Spacer()
                 
@@ -895,23 +934,12 @@ struct ClipboardView: View {
                 .buttonStyle(BorderlessButtonStyle())
                 .disabled(isSettingsOpening)
                 
-                // Display the count of filtered items, or selected items count during selection mode
+                // Simple item count
                 if segmentedSelection == 2 {
-                    // Queue tab: show queue count with paste hint
-                    HStack(spacing: 4) {
-                        Image(systemName: "list.number")
-                            .font(.system(size: 10))
-                            .foregroundColor(.orange)
-                        Text("\(pasteQueueManager.itemCount) in queue")
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
-                        if pasteQueueManager.itemCount > 0 {
-                            Text("• ⌃V paste")
-                                .font(.system(size: 10))
-                                .foregroundColor(.orange.opacity(0.8))
-                        }
-                    }
-                    .padding(.horizontal, 10)
+                    Text("\(pasteQueueManager.itemCount) items")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 10)
                 } else if isSelectMode {
                     Text("\(selectedItems.count) of \(filteredItems.count) selected")
                         .font(.system(size: 11))
@@ -926,6 +954,44 @@ struct ClipboardView: View {
             }
             .padding(.vertical, 6)
             .padding(.horizontal)
+        }
+    }
+    
+    // Helper for clear button color
+    private func getClearButtonColor() -> Color {
+        if isClearButtonHovered || trashAnimationPhase > 0 {
+            return isSelectMode && selectedItems.isEmpty ? .red : .orange
+        }
+        return isSelectMode && selectedItems.isEmpty ? .red : .primary
+    }
+    
+    // Helper for clear button background
+    private func getClearButtonBackground() -> Color {
+        if isClearButtonHovered || trashAnimationPhase > 0 {
+            return isSelectMode && selectedItems.isEmpty ? Color.red.opacity(0.15) : Color.orange.opacity(0.12)
+        }
+        return isSelectMode && selectedItems.isEmpty ? Color.red.opacity(0.1) : Color.clear
+    }
+    
+    // Helper for clear button border
+    private func getClearButtonBorder() -> Color {
+        if isClearButtonHovered || trashAnimationPhase > 0 {
+            return isSelectMode && selectedItems.isEmpty ? Color.red.opacity(0.4) : Color.orange.opacity(0.3)
+        }
+        return isSelectMode && selectedItems.isEmpty ? Color.red.opacity(0.3) : Color.clear
+    }
+    
+    // Skeuomorphic trash shake animation (iOS 6 style)
+    private func triggerTrashAnimation() {
+        trashAnimationPhase = 1
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            trashAnimationPhase = 2
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            trashAnimationPhase = 1
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            trashAnimationPhase = 0
         }
     }
     
