@@ -161,20 +161,31 @@ struct PasteQueueView: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(
-                    index == 0
-                    ? Color.orange.opacity(colorScheme == .dark ? 0.12 : 0.08)
-                    : (hoveredItemId == item.id
-                       ? Color.primary.opacity(colorScheme == .dark ? 0.08 : 0.04)
-                       : Color.primary.opacity(colorScheme == .dark ? 0.04 : 0.02))
-                )
-        )
+        .background {
+            if index == 0 {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(.regularMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.orange.opacity(0.15))
+                    )
+                    .shadow(color: Color.orange.opacity(0.2), radius: 4, x: 0, y: 2)
+            } else if hoveredItemId == item.id {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(.regularMaterial)
+                    .shadow(color: Color.black.opacity(0.2), radius: 3, x: 0, y: 1)
+            } else {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(.regularMaterial)
+                    .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.25 : 0.08), radius: 2, x: 0, y: 1)
+            }
+        }
         .overlay(
             RoundedRectangle(cornerRadius: 10)
                 .strokeBorder(
-                    index == 0 ? Color.orange.opacity(0.3) : Color.clear,
+                    index == 0 
+                    ? Color.orange.opacity(0.5) 
+                    : Color.white.opacity(colorScheme == .dark ? 0.15 : 0.25),
                     lineWidth: 0.5
                 )
         )

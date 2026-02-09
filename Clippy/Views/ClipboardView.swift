@@ -114,56 +114,20 @@ struct ClipboardView: View {
         ZStack {
             // More efficient background - use native material only when needed
             #if os(macOS)
+            // Glass window background using thin material (lighter)
             if #available(macOS 12.0, *) {
                 Rectangle()
-                    .fill(Material.ultraThinMaterial)
-                    .edgesIgnoringSafeArea(.all)
-                    .overlay(
-                        LinearGradient(
-                            gradient: Gradient(colors: [
-                                Color.white.opacity(0.06),
-                                Color.white.opacity(0.03)
-                            ]),
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
+                    .fill(.thinMaterial)
+                    .ignoresSafeArea()
             } else {
                 VisualEffectView(material: .popover, blendingMode: .withinWindow)
-                    .edgesIgnoringSafeArea(.all)
-                    .overlay(
-                        LinearGradient(
-                            gradient: Gradient(colors: [
-                                Color.white.opacity(0.06),
-                                Color.white.opacity(0.03)
-                            ]),
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
+                    .ignoresSafeArea()
             }
             #endif
             
             #if targetEnvironment(macCatalyst)
-            if let uiImage = UIImage(named: "background") {
-                Image(uiImage: uiImage)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .edgesIgnoringSafeArea(.all)
-            } else {
-                VisualEffectView(material: .popover, blendingMode: .withinWindow)
-                    .edgesIgnoringSafeArea(.all)
-                    .overlay(
-                        LinearGradient(
-                            gradient: Gradient(colors: [
-                                Color.white.opacity(0.06),
-                                Color.white.opacity(0.03)
-                            ]),
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-            }
+            VisualEffectView(material: .popover, blendingMode: .withinWindow)
+                .ignoresSafeArea()
             #endif
             
             mainContentView

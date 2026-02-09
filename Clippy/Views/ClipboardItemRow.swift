@@ -112,23 +112,31 @@ struct ClipboardItemRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
     
-    // Background shape
+    // Background shape with glass material - more visible
+    @ViewBuilder
     private var backgroundShape: some View {
-        RoundedRectangle(cornerRadius: 8)
-            .fill(
-                isHovered 
-                ? Color.accentColor.opacity(colorScheme == .dark ? 0.25 : 0.15)
-                : Color(colorScheme == .dark ? .gray : .white).opacity(colorScheme == .dark ? 0.15 : 0.85)
-            )
+        if isHovered {
+            RoundedRectangle(cornerRadius: 10)
+                .fill(.regularMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.accentColor.opacity(0.2))
+                )
+                .shadow(color: Color.accentColor.opacity(0.2), radius: 4, x: 0, y: 2)
+        } else {
+            RoundedRectangle(cornerRadius: 10)
+                .fill(.regularMaterial)
+                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 2, x: 0, y: 1)
+        }
     }
     
-    // Border shape
+    // Border shape with visible glass edge
     private var borderShape: some View {
-        RoundedRectangle(cornerRadius: 8)
+        RoundedRectangle(cornerRadius: 10)
             .strokeBorder(
                 isHovered
-                ? Color.accentColor.opacity(colorScheme == .dark ? 0.35 : 0.3)
-                : Color.primary.opacity(colorScheme == .dark ? 0.15 : 0.08),
+                ? Color.accentColor.opacity(0.5)
+                : Color.white.opacity(colorScheme == .dark ? 0.15 : 0.3),
                 lineWidth: 0.5
             )
     }
@@ -223,20 +231,21 @@ struct ClipboardItemRow: View {
         HStack(spacing: 4) {
             Text(language.displayName)
                 .font(.system(size: 11, weight: .medium))
-                .foregroundColor(colorScheme == .dark ? .white : .black)
+                .foregroundColor(language.color)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 3)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(language.color.opacity(colorScheme == .dark ? 0.2 : 0.1))
+                .fill(.ultraThinMaterial)
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
-                        .strokeBorder(
-                            language.color.opacity(colorScheme == .dark ? 0.3 : 0.15),
-                            lineWidth: 0.5
-                        )
+                        .fill(language.color.opacity(0.1))
                 )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(language.color.opacity(0.3), lineWidth: 0.5)
         )
     }
     
@@ -261,13 +270,13 @@ struct ClipboardItemRow: View {
             .padding(8)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.primary.opacity(colorScheme == .dark ? 0.12 : 0.04))
+                    .fill(.ultraThinMaterial)
             )
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
                     .strokeBorder(
-                        Color.primary.opacity(colorScheme == .dark ? 0.15 : 0.08),
+                        Color.white.opacity(colorScheme == .dark ? 0.08 : 0.15),
                         lineWidth: 0.5
                     )
             )
