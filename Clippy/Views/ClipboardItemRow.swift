@@ -13,6 +13,8 @@ struct ClipboardItemRow: View {
     let showFullContent: Bool
     @ObservedObject var clipboardManager: ClipboardManager
     @Environment(\.colorScheme) private var colorScheme
+    @State private var isPinHovered = false
+    @State private var pinBounce = false
     
     var body: some View {
         mainContent
@@ -83,16 +85,32 @@ struct ClipboardItemRow: View {
             // Pin button on hover only with reduced size
             if isHovered {
                 Button(action: { 
+                    // Trigger iOS-style bounce
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.4)) {
+                        pinBounce = true
+                    }
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                         clipboardManager.togglePinStatus(item)
+                    }
+                    // Reset bounce
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.65)) {
+                            pinBounce = false
+                        }
                     }
                 }) {
                     Image(systemName: clipboardManager.isPinned(item) ? "pin.fill" : "pin")
                         .font(.system(size: 10))
-                        .foregroundColor(clipboardManager.isPinned(item) ? .yellow : .secondary)
+                        .foregroundColor(isPinHovered || clipboardManager.isPinned(item) ? .yellow : .secondary)
+                        .scaleEffect(pinBounce ? 1.35 : (isPinHovered ? 1.15 : 1.0))
+                        .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isPinHovered)
+                        .animation(.spring(response: 0.25, dampingFraction: 0.4), value: pinBounce)
                 }
                 .buttonStyle(BorderlessButtonStyle())
-                .transition(.opacity)
+                .onHover { hovering in
+                    isPinHovered = hovering
+                }
+                .transition(.opacity.combined(with: .scale(scale: 0.8)))
             } else if clipboardManager.isPinned(item) {
                 // Show pin indicator when not hovered but item is pinned
                 Image(systemName: "pin.fill")

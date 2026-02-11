@@ -5,9 +5,15 @@ import SwiftUI
 struct PasteQueueView: View {
     @ObservedObject var pasteQueueManager: PasteQueueManager
     @ObservedObject var clipboardManager: ClipboardManager
+    var showCategoryBar: Bool = false
     @Environment(\.colorScheme) private var colorScheme
     @State private var hoveredItemId: UUID? = nil
     @State private var draggingItem: ClipboardItem? = nil
+    
+    // Dynamic top padding matching the floating header height
+    private var contentTopPadding: CGFloat {
+        showCategoryBar ? 135 : 100
+    }
     
     var body: some View {
         Group {
@@ -50,8 +56,10 @@ struct PasteQueueView: View {
             }
             .padding(.top, 8)
         }
-        .padding(.top, 10)
+        .padding(.top, contentTopPadding) // Account for floating header + tab bar
+        .padding(.bottom, 55) // Account for floating footer
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showCategoryBar)
     }
     
     // MARK: - Queue List with Drag Reorder
@@ -84,11 +92,12 @@ struct PasteQueueView: View {
                         ))
                 }
             }
-            .padding(.top, 100) // Floating header + tab bar space
+            .padding(.top, contentTopPadding) // Floating header + tab bar space
             .padding(.bottom, 55) // Floating footer pill space
             .padding(.horizontal, 8)
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.85), value: pasteQueueManager.queueItems.map { $0.id })
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showCategoryBar)
     }
     
     // MARK: - Queue Item Row (consistent styling with ClipboardItemRow)

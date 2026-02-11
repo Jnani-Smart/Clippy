@@ -65,6 +65,7 @@ struct ClipboardView: View {
     @State private var showClearAllConfirmation = false
     @State private var isClearButtonHovered = false
     @State private var trashAnimationPhase = 0
+    @State private var isSettingsHovered = false
     
     // Add the timeAgo function right here, before it's used
     private func timeAgo(from date: Date) -> String {
@@ -83,6 +84,27 @@ struct ClipboardView: View {
             }
         } else {
             return "Clear"
+        }
+    }
+    
+    // Dynamic mask height that adapts to floating header size
+    // Accounts for: title bar, search bar, segmented control, and category bar
+    private var topMaskHeight: CGFloat {
+        if isSelectMode {
+            // Select mode: title + search bar only (no segmented bar)
+            return showCategoryBar ? 85 : 55
+        } else {
+            // Normal mode: title + search bar + segmented bar
+            return showCategoryBar ? 100 : 65
+        }
+    }
+    
+    // Dynamic content top padding — keeps items positioned below the floating header
+    private var contentTopPadding: CGFloat {
+        if isSelectMode {
+            return showCategoryBar ? 100 : 65
+        } else {
+            return showCategoryBar ? 135 : 100
         }
     }
     
@@ -287,12 +309,13 @@ struct ClipboardView: View {
             }
             .mask(
                 VStack(spacing: 0) {
-                    // Solid invisible zone - completely hides content behind header + search bar
+                    // Solid invisible zone - completely hides content behind floating header
+                    // Dynamically adjusts for: select mode (no segmented bar) and category bar visibility
                     Rectangle()
                         .fill(Color.clear)
-                        .frame(height: isSelectMode ? 55 : 65)
+                        .frame(height: topMaskHeight)
                     
-                    // Short gradient fade - content fades in just before segmented bar ends
+                    // Short gradient fade - content fades in smoothly below the floating header
                     LinearGradient(
                         colors: [.clear, .black],
                         startPoint: .top,
@@ -312,6 +335,8 @@ struct ClipboardView: View {
                     )
                     .frame(height: 50)
                 }
+                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showCategoryBar)
+                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSelectMode)
             )
             
             // Floating UI overlay
@@ -322,9 +347,9 @@ struct ClipboardView: View {
                 // Floating segmented control (just below header divider)
                 if !isSelectMode {
                     HStack(spacing: 1) {
-                        tabButton(index: 0, icon: "clock.fill", label: "Recent")
-                        tabButton(index: 1, icon: "pin.fill", label: "Pinned")
-                        queueTabButton(index: 2, icon: "list.number", label: "Queue")
+                        tabButton(index: 0, icon: "clock.fill", label: "Recent", accentColor: .blue)
+                        tabButton(index: 1, icon: "pin.fill", label: "Pinned", accentColor: .yellow)
+                        tabButton(index: 2, icon: "list.number", label: "Queue", accentColor: .orange, badgeCount: pasteQueueManager.itemCount)
                     }
                     .padding(.horizontal, 4)
                     .padding(.vertical, 3)
@@ -332,6 +357,7 @@ struct ClipboardView: View {
                     .padding(.horizontal, 16)
                     .padding(.top, 4)
                     .animation(.spring(response: 0.3, dampingFraction: 0.7), value: segmentedSelection)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: pasteQueueManager.itemCount)
                     .transition(.opacity.combined(with: .scale(scale: 0.95)).animation(.easeOut(duration: 0.2)))
                 }
                 
@@ -362,12 +388,14 @@ struct ClipboardView: View {
                 // Do nothing, just dismiss
             }
             Button("Clear All", role: .destructive) {
+                // Trigger trash animation
+                triggerTrashAnimation()
                 // Select all items and delete them
                 withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
                     selectedItems = Set(filteredItems.map { $0.id })
                 }
-                // Auto-delete after a brief moment to show selection
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                // Auto-delete after trash animation completes
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                         deleteSelectedItems()
                     }
@@ -472,25 +500,33 @@ struct ClipboardView: View {
                         .rotationEffect(.degrees(trashAnimationPhase == 1 ? -15 : (trashAnimationPhase == 2 ? 15 : 0)))
                         .scaleEffect(trashAnimationPhase > 0 ? 1.2 : 1.0)
                     
-                    Text(getTrashButtonText())
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(getClearButtonColor())
-                        .id("trash-button-text-\(getTrashButtonText())")
-                        .transition(.asymmetric(
-                            insertion: .opacity.combined(with: .scale(scale: 0.9)).animation(.easeOut(duration: 0.15)),
-                            removal: .opacity.combined(with: .scale(scale: 1.1)).animation(.easeIn(duration: 0.1))
-                        ))
+                    ZStack(alignment: .leading) {
+                        // Invisible sizing text for current state
+                        Text(getTrashButtonText())
+                            .hidden()
+                        Text("Clear")
+                            .opacity(!isSelectMode ? 1 : 0)
+                        Text("Clear All")
+                            .opacity(isSelectMode && selectedItems.isEmpty ? 1 : 0)
+                        Text("Delete")
+                            .opacity(isSelectMode && !selectedItems.isEmpty ? 1 : 0)
+                    }
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(getClearButtonColor())
+                    .animation(.easeInOut(duration: 0.2), value: isSelectMode)
+                    .animation(.easeInOut(duration: 0.2), value: selectedItems.isEmpty)
                 }
                 .scaleEffect(isClearButtonHovered ? 1.05 : 1.0)
             }
             .buttonStyle(BorderlessButtonStyle())
-            .disabled(segmentedSelection == 2 && pasteQueueManager.queueItems.isEmpty)
-            .opacity(segmentedSelection == 2 && pasteQueueManager.queueItems.isEmpty ? 0.5 : 1)
+            .disabled(filteredItems.isEmpty)
+            .opacity(filteredItems.isEmpty ? 0.5 : 1)
             .onHover { isHovered in
                 withAnimation(.easeInOut(duration: 0.15)) {
                     isClearButtonHovered = isHovered
                 }
             }
+            .animation(.easeInOut(duration: 0.2), value: isSelectMode)
             .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isClearButtonHovered)
             .animation(.spring(response: 0.15, dampingFraction: 0.5), value: trashAnimationPhase)
             
@@ -501,7 +537,6 @@ struct ClipboardView: View {
                 guard !isSettingsOpening else { return }
                 isSettingsOpening = true
                 appDelegate.openSettings()
-                // Reset after a short delay
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     isSettingsOpening = false
                 }
@@ -509,10 +544,23 @@ struct ClipboardView: View {
                 Image(systemName: "gear")
                     .font(.system(size: 14, weight: .medium))
                     .imageScale(.medium)
+                    .foregroundColor(.secondary)
+                    .overlay(
+                        Image(systemName: "gear")
+                            .font(.system(size: 14, weight: .medium))
+                            .imageScale(.medium)
+                            .foregroundColor(.accentColor)
+                            .opacity(isSettingsHovered ? 1 : 0)
+                    )
+                    .scaleEffect(isSettingsHovered ? 1.05 : 1.0)
                     .opacity(isSettingsOpening ? 0.7 : 1.0)
             }
-            .buttonStyle(BorderlessButtonStyle())
+            .buttonStyle(ScalePressButtonStyle())
             .disabled(isSettingsOpening)
+            .onHover { hovering in
+                isSettingsHovered = hovering
+            }
+            .animation(.easeInOut(duration: 0.25), value: isSettingsHovered)
             
             // Simple item count
             if segmentedSelection == 2 {
@@ -616,7 +664,33 @@ struct ClipboardView: View {
                 }
             }
             .padding(.vertical, 4)
+            // Extra horizontal padding so content starts/ends away from fade zones
+            .padding(.horizontal, 8)
         }
+        // Horizontal edge fade mask — matches the vertical scroll-to-blur effect
+        .mask(
+            HStack(spacing: 0) {
+                // Left fade
+                LinearGradient(
+                    colors: [.clear, .black],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+                .frame(width: 12)
+                
+                // Fully visible center
+                Rectangle()
+                    .fill(Color.black)
+                
+                // Right fade
+                LinearGradient(
+                    colors: [.black, .clear],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+                .frame(width: 12)
+            }
+        )
     }
     
     // Helper function to create a consistent category button
@@ -703,7 +777,7 @@ struct ClipboardView: View {
                 // Default empty state
                 Image(systemName: "clipboard")
                     .font(.system(size: 36, weight: .light))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.blue.opacity(0.8))
                     .imageScale(.large)
                     .padding(.bottom, 1)
                 
@@ -717,8 +791,33 @@ struct ClipboardView: View {
                     .padding(.horizontal)
             }
         }
-        .padding(.top, 10)
+        .padding(.top, contentTopPadding) // Account for floating header + tab bar
+        .padding(.bottom, 55) // Account for floating footer
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showCategoryBar)
+    }
+    
+    private var pinnedEmptyStateView: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "pin")
+                .font(.system(size: 36, weight: .light))
+                .foregroundColor(.yellow.opacity(0.8))
+                .imageScale(.large)
+                .padding(.bottom, 1)
+            
+            Text("No pinned items")
+                .font(.headline)
+            
+            Text("Pin items to keep them accessible")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+        }
+        .padding(.top, contentTopPadding)
+        .padding(.bottom, 55)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showCategoryBar)
     }
     
     private var clipboardItemsListView: some View {
@@ -732,11 +831,12 @@ struct ClipboardView: View {
                         ))
                 }
             }
-            .padding(.top, isSelectMode ? 65 : 100) // Floating header + tab bar space
+            .padding(.top, contentTopPadding) // Floating header + tab bar space
             .padding(.bottom, 55) // Floating footer pill space
             .padding(.horizontal, isSelectMode ? 0 : 8)
             .animation(.spring(response: 0.25, dampingFraction: 0.75), value: filteredItems.map { $0.id })
             .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSelectMode)
+            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showCategoryBar)
         }
     }
     
@@ -1032,14 +1132,21 @@ struct ClipboardView: View {
                             .rotationEffect(.degrees(trashAnimationPhase == 1 ? -15 : (trashAnimationPhase == 2 ? 15 : 0)))
                             .scaleEffect(trashAnimationPhase > 0 ? 1.2 : 1.0)
                         
-                        Text(getTrashButtonText())
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(getClearButtonColor())
-                            .id("trash-button-text-\(getTrashButtonText())")
-                            .transition(.asymmetric(
-                                insertion: .opacity.combined(with: .scale(scale: 0.9)).animation(.easeOut(duration: 0.15)),
-                                removal: .opacity.combined(with: .scale(scale: 1.1)).animation(.easeIn(duration: 0.1))
-                            ))
+                        ZStack(alignment: .leading) {
+                            // Invisible sizing text for current state
+                            Text(getTrashButtonText())
+                                .hidden()
+                            Text("Clear")
+                                .opacity(!isSelectMode ? 1 : 0)
+                            Text("Clear All")
+                                .opacity(isSelectMode && selectedItems.isEmpty ? 1 : 0)
+                            Text("Delete")
+                                .opacity(isSelectMode && !selectedItems.isEmpty ? 1 : 0)
+                        }
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(getClearButtonColor())
+                        .animation(.easeInOut(duration: 0.2), value: isSelectMode)
+                        .animation(.easeInOut(duration: 0.2), value: selectedItems.isEmpty)
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 6)
@@ -1055,13 +1162,14 @@ struct ClipboardView: View {
                 }
                 .buttonStyle(BorderlessButtonStyle())
                 .padding(.horizontal)
-                .disabled(segmentedSelection == 2 && pasteQueueManager.queueItems.isEmpty)
-                .opacity(segmentedSelection == 2 && pasteQueueManager.queueItems.isEmpty ? 0.5 : 1)
+                .disabled(filteredItems.isEmpty)
+                .opacity(filteredItems.isEmpty ? 0.5 : 1)
                 .onHover { isHovered in
                     withAnimation(.easeInOut(duration: 0.15)) {
                         isClearButtonHovered = isHovered
                     }
                 }
+                .animation(.easeInOut(duration: 0.2), value: isSelectMode)
                 .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isClearButtonHovered)
                 .animation(.spring(response: 0.15, dampingFraction: 0.5), value: trashAnimationPhase)
                 
@@ -1072,7 +1180,6 @@ struct ClipboardView: View {
                     guard !isSettingsOpening else { return }
                     isSettingsOpening = true
                     appDelegate.openSettings()
-                    // Reset after a short delay
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                         isSettingsOpening = false
                     }
@@ -1080,10 +1187,23 @@ struct ClipboardView: View {
                     Image(systemName: "gear")
                         .font(.system(size: 14, weight: .medium))
                         .imageScale(.medium)
+                        .foregroundColor(.secondary)
+                        .overlay(
+                            Image(systemName: "gear")
+                                .font(.system(size: 14, weight: .medium))
+                                .imageScale(.medium)
+                                .foregroundColor(.accentColor)
+                                .opacity(isSettingsHovered ? 1 : 0)
+                        )
+                        .scaleEffect(isSettingsHovered ? 1.05 : 1.0)
                         .opacity(isSettingsOpening ? 0.7 : 1.0)
                 }
-                .buttonStyle(BorderlessButtonStyle())
+                .buttonStyle(ScalePressButtonStyle())
                 .disabled(isSettingsOpening)
+                .onHover { hovering in
+                    isSettingsHovered = hovering
+                }
+                .animation(.easeInOut(duration: 0.25), value: isSettingsHovered)
                 
                 // Simple item count
                 if segmentedSelection == 2 {
@@ -1111,25 +1231,25 @@ struct ClipboardView: View {
     // Helper for clear button color
     private func getClearButtonColor() -> Color {
         if isClearButtonHovered || trashAnimationPhase > 0 {
-            return isSelectMode && selectedItems.isEmpty ? .red : .orange
+            return .red
         }
-        return isSelectMode && selectedItems.isEmpty ? .red : .primary
+        return isSelectMode ? .red : .primary
     }
     
     // Helper for clear button background
     private func getClearButtonBackground() -> Color {
         if isClearButtonHovered || trashAnimationPhase > 0 {
-            return isSelectMode && selectedItems.isEmpty ? Color.red.opacity(0.15) : Color.orange.opacity(0.12)
+            return Color.red.opacity(0.12)
         }
-        return isSelectMode && selectedItems.isEmpty ? Color.red.opacity(0.1) : Color.clear
+        return isSelectMode ? Color.red.opacity(0.1) : Color.clear
     }
     
     // Helper for clear button border
     private func getClearButtonBorder() -> Color {
         if isClearButtonHovered || trashAnimationPhase > 0 {
-            return isSelectMode && selectedItems.isEmpty ? Color.red.opacity(0.4) : Color.orange.opacity(0.3)
+            return Color.red.opacity(0.3)
         }
-        return isSelectMode && selectedItems.isEmpty ? Color.red.opacity(0.3) : Color.clear
+        return isSelectMode ? Color.red.opacity(0.3) : Color.clear
     }
     
     // Skeuomorphic trash shake animation (iOS 6 style)
@@ -1191,22 +1311,7 @@ struct ClipboardView: View {
     private var pinnedItemsView: some View {
         Group {
             if clipboardManager.pinnedItems.isEmpty {
-                VStack(spacing: 8) {
-                    Image(systemName: "pin")
-                        .font(.system(size: 36, weight: .light))
-                        .foregroundColor(.secondary)
-                        .imageScale(.large)
-                        .padding(.bottom, 1)
-                    Text("No pinned items")
-                        .font(.headline)
-                    Text("Pin items to keep them accessible")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                }
-                .padding(.top, 10)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                pinnedEmptyStateView
             } else if filteredItems.isEmpty && !isClearing {
                 // Reuse the empty state for filtered pinned items
                 emptyStateView
@@ -1221,49 +1326,18 @@ struct ClipboardView: View {
                                 ))
                         }
                     }
-                    .padding(.top, 100) // Floating header + tab bar space
+                    .padding(.top, contentTopPadding) // Floating header + tab bar space
                     .padding(.bottom, 55) // Floating footer pill space
                     .padding(.horizontal, 8)
                     .animation(.spring(response: 0.25, dampingFraction: 0.75), value: filteredItems.map { $0.id })
+                    .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showCategoryBar)
                 }
             }
         }
     }
     
-    // Helper method to create consistent tab buttons
-    private func tabButton(index: Int, icon: String, label: String) -> some View {
-        Button(action: {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                segmentedSelection = index
-            }
-        }) {
-            HStack(spacing: 5) {
-                Image(systemName: icon)
-                    .font(.system(size: 12, weight: segmentedSelection == index ? .semibold : .regular))
-                    .imageScale(.medium)
-                    .symbolEffect(.bounce.down, value: segmentedSelection == index)
-                
-                Text(label)
-                    .font(.system(size: 12, weight: segmentedSelection == index ? .semibold : .medium))
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 5)
-            .background(
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(segmentedSelection == index ? 
-                          (colorScheme == .dark ? Color.white.opacity(0.12) : Color.white.opacity(0.85)) : 
-                          Color.clear)
-                    .shadow(color: Color.black.opacity(segmentedSelection == index ? 0.06 : 0), radius: 1, x: 0, y: 1)
-            )
-            .contentShape(Rectangle())
-            .foregroundColor(segmentedSelection == index ? .primary : .secondary)
-        }
-        .buttonStyle(PlainButtonStyle())
-        .animation(.spring(response: 0.2, dampingFraction: 0.7), value: segmentedSelection)
-    }
-    
-    // Helper method to create queue tab button with badge indicator
-    private func queueTabButton(index: Int, icon: String, label: String) -> some View {
+    // Helper method to create consistent tab buttons with optional badge
+    private func tabButton(index: Int, icon: String, label: String, accentColor: Color = .blue, badgeCount: Int = 0) -> some View {
         Button(action: {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                 segmentedSelection = index
@@ -1276,13 +1350,12 @@ struct ClipboardView: View {
                         .imageScale(.medium)
                         .symbolEffect(.bounce.down, value: segmentedSelection == index)
                     
-                    // Show badge with queue count if there are items
-                    if pasteQueueManager.itemCount > 0 {
-                        Text("\(pasteQueueManager.itemCount)")
+                    if badgeCount > 0 {
+                        Text("\(badgeCount)")
                             .font(.system(size: 8, weight: .bold))
                             .foregroundColor(.white)
                             .frame(minWidth: 12, minHeight: 12)
-                            .background(Circle().fill(Color.orange))
+                            .background(Circle().fill(accentColor))
                             .offset(x: 8, y: -6)
                     }
                 }
@@ -1291,27 +1364,27 @@ struct ClipboardView: View {
                     .font(.system(size: 12, weight: segmentedSelection == index ? .semibold : .medium))
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 5)
+            .padding(.vertical, 6)
             .background(
                 RoundedRectangle(cornerRadius: 14)
                     .fill(segmentedSelection == index ? 
-                          (colorScheme == .dark ? Color.orange.opacity(0.2) : Color.orange.opacity(0.15)) : 
+                          (colorScheme == .dark ? accentColor.opacity(0.2) : accentColor.opacity(0.15)) : 
                           Color.clear)
                     .shadow(color: Color.black.opacity(segmentedSelection == index ? 0.06 : 0), radius: 1, x: 0, y: 1)
             )
             .contentShape(Rectangle())
-            .foregroundColor(segmentedSelection == index ? .orange : .secondary)
+            .foregroundColor(segmentedSelection == index ? accentColor : .secondary)
         }
         .buttonStyle(PlainButtonStyle())
         .animation(.spring(response: 0.2, dampingFraction: 0.7), value: segmentedSelection)
-        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: pasteQueueManager.itemCount)
     }
     
     // Paste Queue content view
     private var queueContentView: some View {
         PasteQueueView(
             pasteQueueManager: pasteQueueManager,
-            clipboardManager: clipboardManager
+            clipboardManager: clipboardManager,
+            showCategoryBar: showCategoryBar
         )
     }
     
@@ -1547,6 +1620,16 @@ struct ClipboardView_Previews: PreviewProvider {
     static var previews: some View {
         ClipboardView(clipboardManager: ClipboardManager())
             .frame(width: 320, height: 400)
+    }
+}
+
+// Press-scale button style for tactile click feedback
+struct ScalePressButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.78 : 1.0)
+            .opacity(configuration.isPressed ? 0.6 : 1.0)
+            .animation(configuration.isPressed ? .easeOut(duration: 0.05) : .easeOut(duration: 0.2), value: configuration.isPressed)
     }
 }
 
