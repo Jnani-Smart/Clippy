@@ -225,15 +225,19 @@ struct ClipboardItemRow: View {
     @ViewBuilder
     private func codeSnippetView(language: CodeLanguage) -> some View {
         if #available(macOS 12.0, *), let formattedCode = item.formattedCode {
-            // Convert AttributedString to String for display
-            let codeText = String(formattedCode.characters)
-            codeTextView(text: codeText)
+            // Display the AttributedString directly to preserve syntax highlighting
+            Text(formattedCode)
+                .font(.system(size: 12, design: .monospaced))
+                .lineLimit(showFullContent ? 6 : 3)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(8)
+                .modifier(GlassCardModifier(cornerRadius: 8))
         } else {
             codeTextView(text: item.text ?? "")
         }
     }
     
-    // Code text display
+    // Code text display (fallback for non-highlighted code)
     private func codeTextView(text: String) -> some View {
         Text(text)
             .font(.system(size: 12, design: .monospaced))

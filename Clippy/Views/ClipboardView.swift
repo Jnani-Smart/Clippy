@@ -4,6 +4,16 @@ import Combine
 import UniformTypeIdentifiers
 import Quartz
 
+// MARK: - Scroll Offset Tracking
+
+/// PreferenceKey to track scroll offset for scroll-aware card expansion
+struct ScrollOffsetPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
 // Enhanced visual effect view with modern styling
 struct VisualEffectView: NSViewRepresentable {
     var material: NSVisualEffectView.Material
@@ -66,6 +76,12 @@ struct ClipboardView: View {
     @State private var isClearButtonHovered = false
     @State private var trashAnimationPhase = 0
     @State private var isSettingsHovered = false
+    
+    // Scroll-aware expansion tracking
+    @State private var isScrolling = false
+    @State private var scrollEndWorkItem: DispatchWorkItem? = nil
+    @State private var lastScrollOffset: CGFloat = 0
+    @State private var expandableItemId: UUID? = nil  // Only set when scroll stops + hover
     
     // Add the timeAgo function right here, before it's used
     private func timeAgo(from date: Date) -> String {
@@ -823,6 +839,13 @@ struct ClipboardView: View {
     private var clipboardItemsListView: some View {
         ScrollView {
             LazyVStack(spacing: isSelectMode ? 4 : 3) {
+                // Scroll offset tracker
+                GeometryReader { geo in
+                    Color.clear
+                        .preference(key: ScrollOffsetPreferenceKey.self, value: geo.frame(in: .named("scroll")).minY)
+                }
+                .frame(height: 0)
+                
                 ForEach(filteredItems) { item in
                     clipboardItemRow(for: item)
                         .transition(.asymmetric(
@@ -837,6 +860,10 @@ struct ClipboardView: View {
             .animation(.spring(response: 0.25, dampingFraction: 0.75), value: filteredItems.map { $0.id })
             .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSelectMode)
             .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showCategoryBar)
+        }
+        .coordinateSpace(name: "scroll")
+        .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
+            handleScrollChange(newOffset: value)
         }
     }
     
@@ -868,7 +895,7 @@ struct ClipboardView: View {
             ClipboardItemRow(
                 item: item,
                 isHovered: hoveredItemId == item.id,
-                showFullContent: hoveredItemId == item.id,
+                showFullContent: expandableItemId == item.id,
                 clipboardManager: clipboardManager
             )
             .overlay(alignment: .topTrailing) {
@@ -1080,11 +1107,69 @@ struct ClipboardView: View {
     }
     
     private func handleItemHover(isHovered: Bool, item: ClipboardItem) {
-        // Debounce hover events
+        // Always track hovered item for visual feedback
         DispatchQueue.main.async {
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(.easeInOut(duration: 0.15)) {
                 hoveredItemId = isHovered ? item.id : nil
             }
+        }
+        
+        // Only allow expansion when NOT scrolling
+        if isHovered && !isScrolling {
+            // Small delay before expanding to avoid flicker
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                // Check we're still hovering the same item and still not scrolling
+                if hoveredItemId == item.id && !isScrolling {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        expandableItemId = item.id
+                    }
+                }
+            }
+        } else if !isHovered {
+            withAnimation(.easeOut(duration: 0.15)) {
+                if expandableItemId == item.id {
+                    expandableItemId = nil
+                }
+            }
+        }
+    }
+    
+    // Called when scroll offset changes to detect scrolling
+    private func handleScrollChange(newOffset: CGFloat) {
+        let delta = abs(newOffset - lastScrollOffset)
+        lastScrollOffset = newOffset
+        
+        // Only consider it scrolling if there's meaningful movement
+        if delta > 1 {
+            // Cancel any pending "scroll ended" callback
+            scrollEndWorkItem?.cancel()
+            
+            // Mark as scrolling and collapse any expanded item
+            if !isScrolling {
+                isScrolling = true
+                withAnimation(.easeOut(duration: 0.1)) {
+                    expandableItemId = nil
+                }
+            }
+            
+            // Schedule "scroll ended" detection
+            let workItem = DispatchWorkItem { [self] in
+                withAnimation(.easeOut(duration: 0.2)) {
+                    isScrolling = false
+                }
+                // If still hovering an item after scroll stops, expand it
+                if let hovered = hoveredItemId {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        if hoveredItemId == hovered && !isScrolling {
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                expandableItemId = hovered
+                            }
+                        }
+                    }
+                }
+            }
+            scrollEndWorkItem = workItem
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: workItem)
         }
     }
     
@@ -1318,6 +1403,13 @@ struct ClipboardView: View {
             } else {
                 ScrollView {
                     LazyVStack(spacing: 3) {
+                        // Scroll offset tracker
+                        GeometryReader { geo in
+                            Color.clear
+                                .preference(key: ScrollOffsetPreferenceKey.self, value: geo.frame(in: .named("pinnedScroll")).minY)
+                        }
+                        .frame(height: 0)
+                        
                         ForEach(filteredItems) { item in
                             clipboardItemRow(for: item)
                                 .transition(.asymmetric(
@@ -1331,6 +1423,10 @@ struct ClipboardView: View {
                     .padding(.horizontal, 8)
                     .animation(.spring(response: 0.25, dampingFraction: 0.75), value: filteredItems.map { $0.id })
                     .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showCategoryBar)
+                }
+                .coordinateSpace(name: "pinnedScroll")
+                .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
+                    handleScrollChange(newOffset: value)
                 }
             }
         }

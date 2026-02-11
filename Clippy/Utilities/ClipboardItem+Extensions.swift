@@ -323,54 +323,350 @@ extension ClipboardItem {
         
         // Check OS version for proper API usage
         if #available(macOS 12.0, *) {
-            // Apply some basic syntax highlighting based on language
+            // Apply comprehensive syntax highlighting based on language
             switch language {
             case .swift:
-                highlightKeywords(in: &attributed, text: text, keywords: ["func", "let", "var", "if", "else", "guard", "return", "class", "struct", "enum"])
+                // Swift keywords
+                highlightKeywords(in: &attributed, text: text, keywords: [
+                    // Declarations
+                    "func", "let", "var", "class", "struct", "enum", "protocol", "extension", "typealias", "associatedtype",
+                    "init", "deinit", "subscript", "operator", "precedencegroup", "actor", "macro",
+                    // Modifiers
+                    "public", "private", "fileprivate", "internal", "open", "static", "final", "override", "mutating",
+                    "nonmutating", "dynamic", "optional", "required", "convenience", "lazy", "weak", "unowned",
+                    "inout", "async", "await", "throws", "rethrows", "nonisolated", "@MainActor", "@Sendable",
+                    // Control flow
+                    "if", "else", "guard", "switch", "case", "default", "for", "in", "while", "repeat", "do",
+                    "break", "continue", "fallthrough", "return", "throw", "defer", "where",
+                    // Expressions
+                    "try", "catch", "as", "is", "super", "self", "Self", "nil", "true", "false",
+                    "import", "get", "set", "willSet", "didSet", "some", "any"
+                ])
+                // Swift types
+                highlightTypes(in: &attributed, text: text, types: [
+                    "String", "Int", "Double", "Float", "Bool", "Array", "Dictionary", "Set", "Optional",
+                    "Any", "AnyObject", "Void", "Never", "Result", "Error", "Codable", "Hashable", "Equatable",
+                    "Comparable", "Identifiable", "ObservableObject", "Published", "State", "Binding", "View"
+                ])
+                
             case .python:
-                highlightKeywords(in: &attributed, text: text, keywords: ["def", "class", "if", "else", "elif", "import", "from", "return", "for", "while"])
-            case .javascript, .typescript:
-                highlightKeywords(in: &attributed, text: text, keywords: ["function", "let", "var", "const", "if", "else", "return", "class", "import", "export"])
+                highlightKeywords(in: &attributed, text: text, keywords: [
+                    // Keywords
+                    "def", "class", "lambda", "if", "elif", "else", "for", "while", "break", "continue",
+                    "return", "yield", "pass", "raise", "try", "except", "finally", "with", "as", "assert",
+                    "import", "from", "global", "nonlocal", "del", "in", "not", "and", "or", "is",
+                    "async", "await", "match", "case",
+                    // Built-in constants
+                    "True", "False", "None"
+                ])
+                highlightTypes(in: &attributed, text: text, types: [
+                    "str", "int", "float", "bool", "list", "dict", "set", "tuple", "bytes", "bytearray",
+                    "range", "type", "object", "Exception", "self", "cls"
+                ])
+                // Python decorators
+                highlightPattern(in: &attributed, text: text, pattern: "@\\w+", color: .yellow)
+                
+            case .javascript:
+                highlightKeywords(in: &attributed, text: text, keywords: [
+                    // Declarations
+                    "function", "var", "let", "const", "class", "extends", "static", "get", "set",
+                    // Control flow
+                    "if", "else", "switch", "case", "default", "for", "while", "do", "break", "continue",
+                    "return", "throw", "try", "catch", "finally",
+                    // Operators & expressions
+                    "new", "delete", "typeof", "instanceof", "in", "of", "void", "yield", "await", "async",
+                    // Modules
+                    "import", "export", "from", "as", "default",
+                    // Other
+                    "this", "super", "debugger", "with"
+                ])
+                highlightTypes(in: &attributed, text: text, types: [
+                    "true", "false", "null", "undefined", "NaN", "Infinity",
+                    "Object", "Array", "String", "Number", "Boolean", "Function", "Symbol", "BigInt",
+                    "Promise", "Map", "Set", "WeakMap", "WeakSet", "Date", "RegExp", "Error", "JSON", "Math",
+                    "console", "window", "document", "fetch", "setTimeout", "setInterval"
+                ])
+                // Arrow functions
+                highlightPattern(in: &attributed, text: text, pattern: "=>", color: .pink)
+                
+            case .typescript:
+                highlightKeywords(in: &attributed, text: text, keywords: [
+                    // JavaScript keywords
+                    "function", "var", "let", "const", "class", "extends", "static", "get", "set",
+                    "if", "else", "switch", "case", "default", "for", "while", "do", "break", "continue",
+                    "return", "throw", "try", "catch", "finally", "new", "delete", "typeof", "instanceof",
+                    "import", "export", "from", "as", "default", "this", "super", "async", "await", "yield",
+                    // TypeScript specific
+                    "type", "interface", "enum", "namespace", "module", "declare", "abstract", "implements",
+                    "readonly", "private", "protected", "public", "override", "satisfies",
+                    "keyof", "infer", "is", "asserts", "never", "unknown"
+                ])
+                highlightTypes(in: &attributed, text: text, types: [
+                    "true", "false", "null", "undefined", "void", "any", "string", "number", "boolean",
+                    "object", "symbol", "bigint", "Array", "Promise", "Partial", "Required", "Readonly",
+                    "Record", "Pick", "Omit", "Exclude", "Extract", "NonNullable", "ReturnType", "Parameters"
+                ])
+                highlightPattern(in: &attributed, text: text, pattern: "=>", color: .pink)
+                
             case .html, .xml:
-                // Simple tag highlighting
-                highlightPattern(in: &attributed, text: text, pattern: "<[^>]+>")
+                // Tags
+                highlightPattern(in: &attributed, text: text, pattern: "</?\\w+", color: .pink)
+                highlightPattern(in: &attributed, text: text, pattern: "/?>", color: .pink)
+                // Attributes
+                highlightPattern(in: &attributed, text: text, pattern: "\\s\\w+(?==)", color: .orange)
+                // Attribute values
+                highlightPattern(in: &attributed, text: text, pattern: "=\"[^\"]*\"", color: .green)
+                
             case .css:
-                highlightKeywords(in: &attributed, text: text, keywords: ["margin", "padding", "color", "background", "font-size", "width", "height", "display", "position", "border"])
+                // Properties
+                highlightKeywords(in: &attributed, text: text, keywords: [
+                    "margin", "padding", "border", "width", "height", "max-width", "min-width", "max-height", "min-height",
+                    "display", "position", "top", "right", "bottom", "left", "z-index", "float", "clear",
+                    "flex", "flex-direction", "flex-wrap", "justify-content", "align-items", "align-content", "gap",
+                    "grid", "grid-template", "grid-column", "grid-row", "grid-gap",
+                    "color", "background", "background-color", "background-image", "opacity",
+                    "font", "font-size", "font-weight", "font-family", "line-height", "text-align", "text-decoration",
+                    "transform", "transition", "animation", "box-shadow", "border-radius", "overflow", "cursor",
+                    "content", "visibility", "pointer-events"
+                ])
+                // Selectors (. and #)
+                highlightPattern(in: &attributed, text: text, pattern: "[.#][\\w-]+", color: .yellow)
+                // Values with units
+                highlightPattern(in: &attributed, text: text, pattern: "\\d+(\\.\\d+)?(px|em|rem|%|vh|vw|deg|s|ms)", color: .cyan)
+                // Colors
+                highlightPattern(in: &attributed, text: text, pattern: "#[0-9a-fA-F]{3,8}", color: .green)
+                
             case .c:
-                highlightKeywords(in: &attributed, text: text, keywords: ["int", "char", "float", "double", "void", "struct", "union", "enum", "typedef", "const", 
-                            "if", "else", "for", "while", "switch", "case", "return", "break", "continue", "sizeof"])
+                highlightKeywords(in: &attributed, text: text, keywords: [
+                    // Types
+                    "int", "char", "float", "double", "void", "long", "short", "signed", "unsigned",
+                    "struct", "union", "enum", "typedef", "sizeof", "const", "volatile", "static", "extern",
+                    "register", "auto", "inline", "restrict", "_Bool", "_Complex", "_Imaginary",
+                    // Control flow
+                    "if", "else", "for", "while", "do", "switch", "case", "default", "break", "continue",
+                    "return", "goto",
+                    // Preprocessor (without #)
+                    "define", "include", "ifdef", "ifndef", "endif", "pragma"
+                ])
+                highlightTypes(in: &attributed, text: text, types: [
+                    "NULL", "true", "false", "size_t", "FILE", "stdin", "stdout", "stderr"
+                ])
+                // Preprocessor directives
+                highlightPattern(in: &attributed, text: text, pattern: "#\\w+", color: .purple)
+                
             case .cpp:
-                highlightKeywords(in: &attributed, text: text, keywords: ["int", "char", "float", "double", "bool", "void", "class", "struct", "enum", "template", 
-                            "namespace", "using", "public", "private", "protected", "const", "virtual", "inline",
-                            "if", "else", "for", "while", "switch", "case", "return", "new", "delete"])
+                highlightKeywords(in: &attributed, text: text, keywords: [
+                    // C keywords
+                    "int", "char", "float", "double", "void", "long", "short", "signed", "unsigned",
+                    "struct", "union", "enum", "typedef", "sizeof", "const", "volatile", "static", "extern",
+                    "if", "else", "for", "while", "do", "switch", "case", "default", "break", "continue", "return", "goto",
+                    // C++ specific
+                    "class", "public", "private", "protected", "virtual", "override", "final", "explicit",
+                    "template", "typename", "namespace", "using", "new", "delete", "this", "friend",
+                    "inline", "constexpr", "consteval", "constinit", "mutable", "noexcept", "nullptr",
+                    "try", "catch", "throw", "static_cast", "dynamic_cast", "const_cast", "reinterpret_cast",
+                    "auto", "decltype", "concept", "requires", "co_await", "co_yield", "co_return"
+                ])
+                highlightTypes(in: &attributed, text: text, types: [
+                    "bool", "true", "false", "nullptr", "NULL", "string", "vector", "map", "set", "list",
+                    "shared_ptr", "unique_ptr", "weak_ptr", "optional", "variant", "any", "tuple", "pair",
+                    "size_t", "int8_t", "int16_t", "int32_t", "int64_t", "uint8_t", "uint16_t", "uint32_t", "uint64_t"
+                ])
+                highlightPattern(in: &attributed, text: text, pattern: "#\\w+", color: .purple)
+                highlightPattern(in: &attributed, text: text, pattern: "std::\\w+", color: .teal)
+                
             case .csharp:
-                highlightKeywords(in: &attributed, text: text, keywords: ["using", "namespace", "class", "public", "private", "protected", "static", "void", "int", "string", "bool", "var", "if", "else", "for", "while", "switch", "case", "return"])
+                highlightKeywords(in: &attributed, text: text, keywords: [
+                    // Modifiers
+                    "public", "private", "protected", "internal", "static", "readonly", "const", "volatile",
+                    "virtual", "override", "abstract", "sealed", "partial", "async", "await", "extern",
+                    // Declarations
+                    "class", "struct", "interface", "enum", "delegate", "event", "namespace", "using",
+                    "record", "init", "required",
+                    // Control flow
+                    "if", "else", "switch", "case", "default", "for", "foreach", "while", "do",
+                    "break", "continue", "return", "throw", "try", "catch", "finally", "goto",
+                    "yield", "lock", "checked", "unchecked", "fixed", "stackalloc",
+                    // Operators
+                    "new", "typeof", "sizeof", "nameof", "is", "as", "in", "out", "ref", "params",
+                    "this", "base", "where", "when", "and", "or", "not", "with"
+                ])
+                highlightTypes(in: &attributed, text: text, types: [
+                    "void", "var", "dynamic", "object", "string", "bool", "byte", "sbyte", "char",
+                    "short", "ushort", "int", "uint", "long", "ulong", "float", "double", "decimal",
+                    "true", "false", "null", "default",
+                    "Task", "List", "Dictionary", "IEnumerable", "Action", "Func", "Nullable"
+                ])
+                // Attributes
+                highlightPattern(in: &attributed, text: text, pattern: "\\[\\w+.*?\\]", color: .yellow)
+                
             case .java:
-                highlightKeywords(in: &attributed, text: text, keywords: ["public", "private", "protected", "class", "interface", "extends", "implements", "static", "final", "void", "int", "String", "boolean", "if", "else", "for", "while", "switch", "case", "return"])
+                highlightKeywords(in: &attributed, text: text, keywords: [
+                    // Modifiers
+                    "public", "private", "protected", "static", "final", "abstract", "synchronized",
+                    "volatile", "transient", "native", "strictfp", "default",
+                    // Declarations
+                    "class", "interface", "enum", "extends", "implements", "package", "import",
+                    "record", "sealed", "non-sealed", "permits", "var",
+                    // Control flow
+                    "if", "else", "switch", "case", "for", "while", "do", "break", "continue",
+                    "return", "throw", "throws", "try", "catch", "finally", "assert",
+                    // Other
+                    "new", "instanceof", "this", "super"
+                ])
+                highlightTypes(in: &attributed, text: text, types: [
+                    "void", "boolean", "byte", "char", "short", "int", "long", "float", "double",
+                    "true", "false", "null",
+                    "String", "Object", "Integer", "Long", "Double", "Float", "Boolean", "Character",
+                    "List", "ArrayList", "Map", "HashMap", "Set", "HashSet", "Optional", "Stream"
+                ])
+                // Annotations
+                highlightPattern(in: &attributed, text: text, pattern: "@\\w+", color: .yellow)
+                
             case .go:
-                highlightKeywords(in: &attributed, text: text, keywords: ["package", "import", "func", "var", "const", "type", "struct", "interface", "map", "if", "else", "for", "range", "switch", "case", "return", "go", "chan"])
+                highlightKeywords(in: &attributed, text: text, keywords: [
+                    "package", "import", "func", "var", "const", "type", "struct", "interface", "map",
+                    "chan", "go", "select", "defer", "range",
+                    "if", "else", "switch", "case", "default", "for", "break", "continue", "goto",
+                    "return", "fallthrough"
+                ])
+                highlightTypes(in: &attributed, text: text, types: [
+                    "bool", "string", "int", "int8", "int16", "int32", "int64",
+                    "uint", "uint8", "uint16", "uint32", "uint64", "uintptr",
+                    "byte", "rune", "float32", "float64", "complex64", "complex128",
+                    "true", "false", "nil", "iota",
+                    "error", "any", "comparable"
+                ])
+                // Package references
+                highlightPattern(in: &attributed, text: text, pattern: "\\w+\\.", color: .teal)
+                
             case .rust:
-                highlightKeywords(in: &attributed, text: text, keywords: ["fn", "let", "mut", "pub", "use", "struct", "enum", "impl", "trait", "if", "else", "match", "for", "while", "loop", "return"])
+                highlightKeywords(in: &attributed, text: text, keywords: [
+                    "fn", "let", "mut", "const", "static", "pub", "priv", "mod", "use", "crate", "super", "self",
+                    "struct", "enum", "trait", "impl", "type", "where", "as", "dyn", "unsafe", "extern",
+                    "async", "await", "move", "ref", "box",
+                    "if", "else", "match", "loop", "while", "for", "in", "break", "continue", "return"
+                ])
+                highlightTypes(in: &attributed, text: text, types: [
+                    "bool", "char", "str", "i8", "i16", "i32", "i64", "i128", "isize",
+                    "u8", "u16", "u32", "u64", "u128", "usize", "f32", "f64",
+                    "true", "false", "Some", "None", "Ok", "Err", "Self",
+                    "String", "Vec", "Box", "Rc", "Arc", "Option", "Result", "HashMap", "HashSet"
+                ])
+                // Lifetimes
+                highlightPattern(in: &attributed, text: text, pattern: "'\\w+", color: .yellow)
+                // Macros
+                highlightPattern(in: &attributed, text: text, pattern: "\\w+!", color: .purple)
+                
             case .ruby:
-                highlightKeywords(in: &attributed, text: text, keywords: ["def", "class", "module", "require", "include", "attr_accessor", "if", "else", "elsif", "unless", "case", "when", "while", "until", "for", "do", "end", "return"])
+                highlightKeywords(in: &attributed, text: text, keywords: [
+                    "def", "class", "module", "end", "if", "elsif", "else", "unless", "case", "when",
+                    "while", "until", "for", "do", "begin", "rescue", "ensure", "raise", "retry", "redo",
+                    "return", "yield", "break", "next", "super", "self", "nil", "true", "false",
+                    "and", "or", "not", "in", "then", "defined?", "alias", "undef",
+                    "require", "require_relative", "include", "extend", "prepend",
+                    "attr_reader", "attr_writer", "attr_accessor", "private", "protected", "public"
+                ])
+                highlightTypes(in: &attributed, text: text, types: [
+                    "Array", "Hash", "String", "Integer", "Float", "Symbol", "Range", "Regexp",
+                    "Proc", "Lambda", "Object", "Class", "Module", "Struct", "OpenStruct"
+                ])
+                // Symbols
+                highlightPattern(in: &attributed, text: text, pattern: ":\\w+", color: .cyan)
+                // Instance/class variables
+                highlightPattern(in: &attributed, text: text, pattern: "@{1,2}\\w+", color: .orange)
+                
             case .php:
-                highlightKeywords(in: &attributed, text: text, keywords: ["<?php", "function", "class", "public", "private", "protected", "static", "echo", "print", "if", "else", "elseif", "while", "for", "foreach", "switch", "case", "return"])
+                highlightKeywords(in: &attributed, text: text, keywords: [
+                    "function", "class", "interface", "trait", "extends", "implements", "namespace", "use",
+                    "public", "private", "protected", "static", "final", "abstract", "const", "readonly",
+                    "if", "elseif", "else", "switch", "case", "default", "for", "foreach", "while", "do",
+                    "break", "continue", "return", "throw", "try", "catch", "finally",
+                    "new", "clone", "instanceof", "echo", "print", "die", "exit", "include", "require",
+                    "include_once", "require_once", "global", "as", "match", "fn", "enum"
+                ])
+                highlightTypes(in: &attributed, text: text, types: [
+                    "true", "false", "null", "self", "parent", "static",
+                    "void", "bool", "int", "float", "string", "array", "object", "callable", "iterable", "mixed", "never"
+                ])
+                // Variables
+                highlightPattern(in: &attributed, text: text, pattern: "\\$\\w+", color: .orange)
+                
             case .sql:
-                highlightKeywords(in: &attributed, text: text, keywords: ["SELECT", "FROM", "WHERE", "JOIN", "LEFT", "RIGHT", "INNER", "OUTER", "GROUP BY", "ORDER BY", "HAVING", "INSERT", "UPDATE", "DELETE", "CREATE", "ALTER", "DROP", "TABLE", "VIEW", "INDEX"])
+                highlightKeywords(in: &attributed, text: text, keywords: [
+                    // Commands
+                    "SELECT", "FROM", "WHERE", "AND", "OR", "NOT", "IN", "BETWEEN", "LIKE", "IS", "NULL",
+                    "ORDER", "BY", "ASC", "DESC", "LIMIT", "OFFSET", "GROUP", "HAVING", "DISTINCT",
+                    "JOIN", "INNER", "LEFT", "RIGHT", "OUTER", "FULL", "CROSS", "ON", "USING",
+                    "INSERT", "INTO", "VALUES", "UPDATE", "SET", "DELETE", "TRUNCATE",
+                    "CREATE", "ALTER", "DROP", "TABLE", "VIEW", "INDEX", "DATABASE", "SCHEMA",
+                    "PRIMARY", "KEY", "FOREIGN", "REFERENCES", "UNIQUE", "CHECK", "DEFAULT", "AUTO_INCREMENT",
+                    "UNION", "ALL", "EXCEPT", "INTERSECT", "EXISTS", "CASE", "WHEN", "THEN", "ELSE", "END", "AS",
+                    "BEGIN", "COMMIT", "ROLLBACK", "TRANSACTION", "GRANT", "REVOKE"
+                ])
+                highlightTypes(in: &attributed, text: text, types: [
+                    "INT", "INTEGER", "BIGINT", "SMALLINT", "TINYINT", "FLOAT", "DOUBLE", "DECIMAL", "NUMERIC",
+                    "VARCHAR", "CHAR", "TEXT", "BLOB", "DATE", "TIME", "DATETIME", "TIMESTAMP", "BOOLEAN",
+                    "TRUE", "FALSE", "NULL", "COUNT", "SUM", "AVG", "MIN", "MAX"
+                ])
+                
             case .markdown:
-                highlightPattern(in: &attributed, text: text, pattern: "^#+\\s.+$|\\*\\*.+\\*\\*|__.+__|```.*```")
+                highlightPattern(in: &attributed, text: text, pattern: "^#{1,6}\\s.+$", color: .purple)
+                highlightPattern(in: &attributed, text: text, pattern: "\\*\\*[^*]+\\*\\*", color: .orange)
+                highlightPattern(in: &attributed, text: text, pattern: "\\*[^*]+\\*", color: .yellow)
+                highlightPattern(in: &attributed, text: text, pattern: "`[^`]+`", color: .teal)
+                highlightPattern(in: &attributed, text: text, pattern: "\\[[^\\]]+\\]\\([^)]+\\)", color: .blue)
+                highlightPattern(in: &attributed, text: text, pattern: "^\\s*[-*+]\\s", color: .pink)
+                highlightPattern(in: &attributed, text: text, pattern: "^\\s*\\d+\\.\\s", color: .pink)
+                
             case .json:
-                highlightPattern(in: &attributed, text: text, pattern: "\"\\w+\"\\s*:")
+                highlightPattern(in: &attributed, text: text, pattern: "\"[^\"]+\"\\s*:", color: .pink)
+                highlightPattern(in: &attributed, text: text, pattern: ":\\s*\"[^\"]*\"", color: .green)
+                highlightPattern(in: &attributed, text: text, pattern: ":\\s*-?\\d+(\\.\\d+)?([eE][+-]?\\d+)?", color: .cyan)
+                highlightPattern(in: &attributed, text: text, pattern: ":\\s*(true|false|null)", color: .orange)
+                
             case .yaml:
-                highlightPattern(in: &attributed, text: text, pattern: "^\\s*\\w+:\\s.*$")
+                highlightPattern(in: &attributed, text: text, pattern: "^\\s*[\\w.-]+:", color: .pink)
+                highlightPattern(in: &attributed, text: text, pattern: ":\\s*.+$", color: .green)
+                highlightPattern(in: &attributed, text: text, pattern: "^\\s*-\\s", color: .orange)
+                highlightPattern(in: &attributed, text: text, pattern: "\\{\\{[^}]+\\}\\}", color: .teal)
+                
             case .bash:
-                highlightKeywords(in: &attributed, text: text, keywords: ["if", "then", "else", "elif", "fi", "for", "while", "do", "done", "case", "esac", "function", "echo", "export", "source", "sudo", "apt", "brew"])
+                highlightKeywords(in: &attributed, text: text, keywords: [
+                    "if", "then", "else", "elif", "fi", "for", "while", "until", "do", "done",
+                    "case", "esac", "in", "function", "return", "exit", "break", "continue",
+                    "local", "export", "readonly", "declare", "typeset", "unset", "shift",
+                    "echo", "printf", "read", "source", "eval", "exec", "trap", "wait",
+                    "cd", "pwd", "pushd", "popd", "mkdir", "rmdir", "rm", "cp", "mv", "ln",
+                    "cat", "head", "tail", "grep", "sed", "awk", "sort", "uniq", "wc", "find", "xargs",
+                    "chmod", "chown", "sudo", "su", "apt", "yum", "brew", "npm", "pip", "git", "curl", "wget"
+                ])
+                // Variables
+                highlightPattern(in: &attributed, text: text, pattern: "\\$\\{?\\w+\\}?", color: .orange)
+                highlightPattern(in: &attributed, text: text, pattern: "\\$\\([^)]+\\)", color: .teal)
+                
             case .clike:
-                highlightKeywords(in: &attributed, text: text, keywords: ["if", "else", "for", "while", "switch", "case", "class", "struct", "public", "private"])
+                highlightKeywords(in: &attributed, text: text, keywords: [
+                    "if", "else", "for", "while", "do", "switch", "case", "default", "break", "continue",
+                    "return", "class", "struct", "enum", "public", "private", "protected", "static",
+                    "void", "int", "char", "float", "double", "bool", "const", "new", "delete", "this"
+                ])
+                highlightTypes(in: &attributed, text: text, types: [
+                    "true", "false", "null", "nullptr", "NULL"
+                ])
             }
         }
         
         return attributed
+    }
+    
+    // Helper to highlight type names (in a different color than keywords)
+    @available(macOS 12.0, *)
+    private func highlightTypes(in attributedString: inout AttributedString, text: String, types: [String]) {
+        for typeName in types {
+            let pattern = "\\b\(NSRegularExpression.escapedPattern(for: typeName))\\b"
+            highlightPattern(in: &attributedString, text: text, pattern: pattern, color: .teal)
+        }
     }
     
     // Simplify the highlighting methods to avoid AttributedString API issues
@@ -379,13 +675,23 @@ extension ClipboardItem {
         for keyword in keywords {
             // Find each keyword with word boundaries
             let pattern = "\\b\(keyword)\\b"
-            highlightPattern(in: &attributedString, text: text, pattern: pattern)
+            highlightPattern(in: &attributedString, text: text, pattern: pattern, color: .pink) // Keywords in pink/magenta
         }
+        
+        // Also highlight strings (double and single quotes)
+        highlightPattern(in: &attributedString, text: text, pattern: "\"[^\"]*\"|'[^']*'", color: .orange)
+        
+        // Highlight comments
+        highlightPattern(in: &attributedString, text: text, pattern: "//.*$|#.*$", color: .gray)
+        highlightPattern(in: &attributedString, text: text, pattern: "/\\*[\\s\\S]*?\\*/", color: .gray)
+        
+        // Highlight numbers
+        highlightPattern(in: &attributedString, text: text, pattern: "\\b\\d+(\\.\\d+)?\\b", color: .cyan)
     }
     
     @available(macOS 12.0, *)
-    private func highlightPattern(in attributedString: inout AttributedString, text: String, pattern: String) {
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return }
+    private func highlightPattern(in attributedString: inout AttributedString, text: String, pattern: String, color: Color = .blue) {
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.anchorsMatchLines]) else { return }
         
         let range = NSRange(location: 0, length: text.utf16.count)
         let matches = regex.matches(in: text, range: range)
@@ -396,7 +702,7 @@ extension ClipboardItem {
                 // This is much safer than manual index calculation
                 if let attributedRange = Range(range, in: attributedString) {
                     // Use the safer direct property
-                    attributedString[attributedRange].foregroundColor = .blue
+                    attributedString[attributedRange].foregroundColor = color
                 }
             }
         }
