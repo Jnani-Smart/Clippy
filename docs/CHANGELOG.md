@@ -5,6 +5,30 @@ All notable changes to Clippy will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-02-11
+
+### Added
+- Minimalist onboarding experience with clean, professional interface and glass effect styling
+- Comprehensive syntax highlighting for code snippets with support for 15+ programming languages
+- Enhanced keyword recognition including control flow, declarations, modifiers, and language-specific features
+- Type system highlighting with built-in types, framework types, and custom type detection
+- Operator and symbol highlighting for better code readability
+- Smart scroll behavior: cards remain compact during scroll and expand only on hover after scroll stops
+- Hidden window traffic lights in onboarding for cleaner appearance
+
+### Changed
+- Unified all clipboard item backgrounds to consistent grey color for cohesive UI
+- Reduced header top padding for more compact, professional appearance
+- Improved content spacing throughout clipboard view
+- Enhanced syntax highlighting color scheme with distinct colors for different code elements
+- Streamlined onboarding flow to simple 3-step process (Welcome → Permissions → Complete)
+- Improved first-launch detection and handling logic
+
+### Fixed
+- AttributedString rendering for code snippets now uses direct Text() integration
+- Better pattern matching for syntax highlighting edge cases
+- Improved scroll-aware expansion behavior for clipboard items
+
 ## [1.8.0] - 2025-08-19
 
 ### Fixed

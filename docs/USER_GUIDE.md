@@ -12,10 +12,13 @@ Welcome to Clippy, a modern clipboard manager for macOS featuring a beautiful Vi
 
 ### First Run Setup
 
-When you first launch Clippy, you'll need to:
+When you first launch Clippy, you'll experience a minimalist onboarding flow:
 
-1. Allow Accessibility permissions when prompted (needed to capture clipboard changes)
-2. Choose whether to launch Clippy at login (recommended)
+1. **Welcome Screen**: Introduction to Clippy with clean glass effect styling
+2. **Permissions**: Allow Accessibility permissions (needed to capture clipboard changes)
+3. **Complete**: Choose whether to launch Clippy at login (recommended)
+
+The onboarding features a professional, minimal design with hidden window controls for a cleaner appearance.
 
 ## Basic Usage
 
@@ -43,6 +46,13 @@ When you first launch Clippy, you'll need to:
 - Enhanced search with category-aware filtering
 - Beautiful empty states with contextual messages
 - Search works across all categories with optimized performance
+
+### Code Snippet Highlighting
+
+- Code snippets are automatically detected and highlighted with professional syntax coloring
+- Supports 15+ programming languages including Swift, Python, JavaScript, TypeScript, Go, Rust, Java, and more
+- Rich highlighting for keywords, types, operators, strings, numbers, and comments
+- Distinct color scheme for easy code readability and scanning
 
 ### Category Filtering
 
@@ -75,6 +85,14 @@ To keep important items easily accessible:
 
 - Hovering over items reveals a small additional portion of content
 - To preserve consistent row heights, text reveals up to 3 lines, and code up to 6 lines
+- Cards remain compact during scrolling for smoother navigation
+- Expansion only occurs on hover after scrolling has stopped
+
+### Visual Consistency
+
+- All clipboard items feature unified grey backgrounds for a cohesive, professional appearance
+- Reduced header padding provides a more compact layout
+- Improved spacing throughout the interface for better visual hierarchy
 
 ## Advanced Features
 

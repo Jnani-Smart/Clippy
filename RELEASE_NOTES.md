@@ -1,4 +1,34 @@
-# Clippy v1.8.0 Release Notes
+# Clippy v1.9.0 Release Notes
+
+## UI/UX Enhancements
+
+### Minimalist Onboarding Experience
+- **Clean First Launch**: Redesigned onboarding flow with minimal, professional interface
+- **Glass Effect Styling**: Beautiful liquid glass effect throughout onboarding screens
+- **Streamlined Flow**: Simple 3-step onboarding (Welcome → Permissions → Complete)
+- **Hidden Traffic Lights**: Cleaner window appearance with hidden window controls
+- **Robust First-Launch Logic**: Improved detection and handling of first-time app launches
+
+### Clipboard Item UI Improvements
+- **Unified Backgrounds**: All clipboard items now have consistent grey backgrounds for a cohesive look
+- **Reduced Header Padding**: Tightened top padding for more compact, professional appearance
+- **Smart Scroll Behavior**: Cards remain compact during scrolling and only expand on hover after scroll stops
+- **Improved Spacing**: Better content spacing throughout the clipboard view
+
+### Enhanced Syntax Highlighting for Code Snippets
+- **Comprehensive Language Support**: Expanded support for Swift, Python, JavaScript, TypeScript, Go, Rust, Java, Kotlin, C/C++, C#, Ruby, PHP, HTML, CSS, SQL, Shell, and more
+- **Rich Keyword Recognition**: Added extensive keyword lists including control flow, declarations, modifiers, and language-specific features
+- **Type System Highlighting**: Enhanced type detection for built-in types, common framework types, and custom types
+- **Operator and Symbol Highlighting**: Improved recognition of operators, punctuation, and special characters
+- **Professional Color Scheme**: Refined color palette with distinct colors for keywords, types, strings, numbers, comments, and operators
+- **Better Code Readability**: Improved visual distinction between different code elements for easier scanning
+
+## Technical Improvements
+- **AttributedString Integration**: Direct use of AttributedString for more efficient code rendering
+- **Pattern Matching**: Enhanced regex-based pattern matching for better syntax detection
+- **Performance Optimization**: Improved highlighting performance for long code snippets
+
+# Previous Release: Clippy v1.8.0 Release Notes
 
 ## Quick Look Improvements
 
