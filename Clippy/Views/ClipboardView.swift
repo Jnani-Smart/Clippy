@@ -114,11 +114,7 @@ struct ClipboardView: View {
         ZStack {
             // More efficient background - use native material only when needed
             #if os(macOS)
-            if #available(macOS 26.0, *) {
-                // On macOS 26+, liquid glass handles the window chrome
-                Color.clear
-                    .ignoresSafeArea()
-            } else if #available(macOS 12.0, *) {
+            if #available(macOS 12.0, *) {
                 ZStack {
                     Rectangle()
                         .fill(.ultraThinMaterial)

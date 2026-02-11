@@ -360,7 +360,7 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         visualEffectView.translatesAutoresizingMaskIntoConstraints = false
         
         // Use a material that resembles Finder's translucent UI
-        visualEffectView.material = .popover  // More modern translucent background like Finder
+        visualEffectView.material = .popover
         visualEffectView.blendingMode = .withinWindow
         
         // Ensure the effect is always active for consistent appearance
@@ -408,7 +408,7 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         // Set up the view hierarchy with proper layering for depth
         containerView.addSubview(hostView)
         visualEffectView.addSubview(containerView)
-        visualEffectView.addSubview(keyHandler) // Add key event handler to view hierarchy
+        visualEffectView.addSubview(keyHandler)
         
         window.contentView = visualEffectView
         
@@ -417,19 +417,16 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         
         // Set up constraints for proper layout
         NSLayoutConstraint.activate([
-            // Container view fills the visual effect view completely for uniform background
             containerView.topAnchor.constraint(equalTo: visualEffectView.topAnchor),
             containerView.leadingAnchor.constraint(equalTo: visualEffectView.leadingAnchor),
             containerView.trailingAnchor.constraint(equalTo: visualEffectView.trailingAnchor),
             containerView.bottomAnchor.constraint(equalTo: visualEffectView.bottomAnchor),
             
-            // Host view fills the container view completely
             hostView.topAnchor.constraint(equalTo: containerView.topAnchor),
             hostView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
             hostView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
             hostView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
             
-            // Key handler has zero size but needs to be in view hierarchy
             keyHandler.widthAnchor.constraint(equalToConstant: 0),
             keyHandler.heightAnchor.constraint(equalToConstant: 0),
             keyHandler.topAnchor.constraint(equalTo: visualEffectView.topAnchor)
@@ -439,25 +436,19 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         if let contentView = window.contentView {
             contentView.wantsLayer = true
             
-            // Use CATransaction to batch visual changes for better performance
             CATransaction.begin()
             CATransaction.setDisableActions(true)
             
-            // Apply larger corner radius for ChatGPT-like appearance
             contentView.layer?.cornerRadius = 28
             contentView.layer?.masksToBounds = true
             
-            // Configure container view to have the same corner radius for uniform look
             containerView.layer?.cornerRadius = 28
             containerView.layer?.masksToBounds = true
             
-            // Add subtle border for glass effect like visionOS
             containerView.layer?.borderWidth = 0.5
             
-            // Use dynamic border color that works in both light and dark mode
             if NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
                 containerView.layer?.borderColor = NSColor.white.withAlphaComponent(0.08).cgColor
-                // Create a subtle gradient background for depth
                 let gradientLayer = CAGradientLayer()
                 gradientLayer.frame = containerView.bounds
                 gradientLayer.cornerRadius = 28
@@ -468,13 +459,11 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
                 gradientLayer.locations = [0.0, 1.0]
                 containerView.layer?.insertSublayer(gradientLayer, at: 0)
                 
-                // Update gradient frame when container is resized
                 NotificationCenter.default.addObserver(forName: NSView.frameDidChangeNotification, object: containerView, queue: nil) { _ in
                     gradientLayer.frame = containerView.bounds
                 }
             } else {
                 containerView.layer?.borderColor = NSColor.black.withAlphaComponent(0.06).cgColor
-                // Create a subtle gradient background for depth
                 let gradientLayer = CAGradientLayer()
                 gradientLayer.frame = containerView.bounds
                 gradientLayer.cornerRadius = 28
@@ -485,7 +474,6 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
                 gradientLayer.locations = [0.0, 1.0]
                 containerView.layer?.insertSublayer(gradientLayer, at: 0)
                 
-                // Update gradient frame when container is resized
                 NotificationCenter.default.addObserver(forName: NSView.frameDidChangeNotification, object: containerView, queue: nil) { _ in
                     gradientLayer.frame = containerView.bounds
                 }
@@ -774,7 +762,7 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         visualEffectView.translatesAutoresizingMaskIntoConstraints = false
         
         // Use a material that resembles Finder's translucent UI
-        visualEffectView.material = .popover  // More modern translucent background like Finder
+        visualEffectView.material = .popover
         visualEffectView.blendingMode = .withinWindow
         
         // Ensure the effect is always active for consistent appearance
