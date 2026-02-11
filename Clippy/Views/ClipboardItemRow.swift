@@ -21,10 +21,10 @@ struct ClipboardItemRow: View {
             .background(backgroundShape)
             .overlay(borderShape)
             .shadow(
-                color: Color.black.opacity(colorScheme == .dark ? 0.2 : 0.1),
-                radius: isHovered ? 3 : 1,
+                color: Color.black.opacity(colorScheme == .dark ? 0.45 : 0.12),
+                radius: isHovered ? 6 : 3,
                 x: 0,
-                y: isHovered ? 1 : 0
+                y: isHovered ? 2 : 1
             )
             .scaleEffect(isHovered ? 1.01 : 1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHovered)
@@ -112,31 +112,33 @@ struct ClipboardItemRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
     
-    // Background shape with glass material - more visible
+    // Background shape – bright glass card lifted off the dark background
     @ViewBuilder
     private var backgroundShape: some View {
         if isHovered {
-            RoundedRectangle(cornerRadius: 10)
-                .fill(.regularMaterial)
+            RoundedRectangle(cornerRadius: 12)
+                .fill(.thickMaterial)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color.accentColor.opacity(0.2))
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.accentColor.opacity(colorScheme == .dark ? 0.18 : 0.12))
                 )
-                .shadow(color: Color.accentColor.opacity(0.2), radius: 4, x: 0, y: 2)
         } else {
-            RoundedRectangle(cornerRadius: 10)
-                .fill(.regularMaterial)
-                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1), radius: 2, x: 0, y: 1)
+            RoundedRectangle(cornerRadius: 12)
+                .fill(.thickMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.white.opacity(colorScheme == .dark ? 0.06 : 0.3))
+                )
         }
     }
     
-    // Border shape with visible glass edge
+    // Border – bright edge highlight for glass depth
     private var borderShape: some View {
-        RoundedRectangle(cornerRadius: 10)
+        RoundedRectangle(cornerRadius: 12)
             .strokeBorder(
                 isHovered
-                ? Color.accentColor.opacity(0.5)
-                : Color.white.opacity(colorScheme == .dark ? 0.15 : 0.3),
+                ? Color.accentColor.opacity(colorScheme == .dark ? 0.5 : 0.4)
+                : Color.white.opacity(colorScheme == .dark ? 0.18 : 0.4),
                 lineWidth: 0.5
             )
     }

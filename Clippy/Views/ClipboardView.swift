@@ -114,11 +114,16 @@ struct ClipboardView: View {
         ZStack {
             // More efficient background - use native material only when needed
             #if os(macOS)
-            // Glass window background using thin material (lighter)
+            // Glass window background - darker base so items stand out
             if #available(macOS 12.0, *) {
-                Rectangle()
-                    .fill(.thinMaterial)
-                    .ignoresSafeArea()
+                ZStack {
+                    Rectangle()
+                        .fill(.ultraThinMaterial)
+                    // Dark tint to push the background deeper
+                    Rectangle()
+                        .fill(Color.black.opacity(colorScheme == .dark ? 0.35 : 0.05))
+                }
+                .ignoresSafeArea()
             } else {
                 VisualEffectView(material: .popover, blendingMode: .withinWindow)
                     .ignoresSafeArea()
