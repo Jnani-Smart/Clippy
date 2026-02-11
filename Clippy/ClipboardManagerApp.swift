@@ -318,11 +318,10 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         
         print("Creating new settings window with floating window style")
         
-        // Create a panel — NOT using .nonactivatingPanel so the window properly activates,
-        // receives focus, and can be dragged on first open
+        // Create a panel similar to the floating window style
         let window = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 450, height: 500),
-            styleMask: [.titled, .closable, .fullSizeContentView],
+            styleMask: [.titled, .closable, .fullSizeContentView, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
@@ -334,9 +333,6 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         window.center()
         window.title = "Settings"
         window.isReleasedWhenClosed = false
-        
-        // Allow dragging by the window background since titlebar is hidden
-        window.isMovableByWindowBackground = true
         
         // Make the window appear on top of all applications, including full screen apps
         window.level = .statusBar
@@ -415,6 +411,9 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         visualEffectView.addSubview(keyHandler)
         
         window.contentView = visualEffectView
+        
+        // Make keyHandler first responder to capture key events
+        window.initialFirstResponder = keyHandler
         
         // Set up constraints for proper layout
         NSLayoutConstraint.activate([
@@ -560,6 +559,9 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
             contentView.layer?.add(floatAnimation, forKey: "floatIn")
         }
         
+        // Ensure app is active and window is visible
+        NSApp.activate(ignoringOtherApps: true)
+        
         // Restore previous position if available BEFORE showing the window
         if let savedPosition = UserDefaults.standard.string(forKey: settingsWindowPositionKey) {
             let point = NSPointFromString(savedPosition)
@@ -571,15 +573,9 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         // Save the reference
         settingsWindow = window
         
-        // Activate the app FIRST, then show window — ensures proper key/main window status on first open
-        NSApp.activate(ignoringOtherApps: true)
+        // Finally show the window with animation
         window.animator().alphaValue = 1.0
         window.makeKeyAndOrderFront(nil)
-        
-        // Ensure the key handler can receive ESC events after the window is fully set up
-        DispatchQueue.main.async {
-            window.makeFirstResponder(keyHandler)
-        }
     }
     
     @objc func quitApp() {
@@ -1308,6 +1304,39 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         }
     }
     
+    func showSettingsWindow() {
+        guard let clipboardManager = clipboardManager else { return }
+        
+        // Get current menu position
+        guard let screen = NSScreen.main else { return }
+        let menuXPosition = popover.contentViewController?.view.window?.frame.origin.x ?? screen.frame.midX
+        let screenMidX = screen.frame.midX
+        
+        // Position settings window on opposite side of screen from menu
+        let settingsWindow = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 400, height: 500),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        
+        settingsWindow.contentViewController = NSHostingController(
+            rootView: SettingsView(isPresented: .constant(true))
+                .environmentObject(clipboardManager)
+                .environmentObject(self)
+        )
+        
+        settingsWindow.center()
+        
+        // Adjust position based on menu location
+        let newX = menuXPosition < screenMidX ? 
+            screen.frame.maxX - settingsWindow.frame.width - 20 : 
+            20
+        
+        settingsWindow.setFrameOrigin(NSPoint(x: newX, y: settingsWindow.frame.origin.y))
+        settingsWindow.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
 }
 
 // KeyEventHandlerView for intercepting ESC key events
