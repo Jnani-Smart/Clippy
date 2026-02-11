@@ -103,7 +103,6 @@ extension NSEvent.ModifierFlags {
 }
 
 class ShortcutManager {
-    private var eventHandler: EventHandlerRef?
     private var hotKeyRef: EventHotKeyRef?
     private let keyCombo: KeyCombo
     private let action: () -> Void
@@ -112,6 +111,7 @@ class ShortcutManager {
     // Static counter to generate unique IDs for each shortcut
     private static var nextHotKeyID: UInt32 = 1
     private static var registeredManagers: [UInt32: ShortcutManager] = [:]
+    private static var sharedEventHandler: EventHandlerRef?
     
     init(keyCombo: KeyCombo, action: @escaping () -> Void) {
         self.keyCombo = keyCombo
@@ -128,18 +128,17 @@ class ShortcutManager {
         ShortcutManager.registeredManagers.removeValue(forKey: hotKeyID)
     }
     
-    private func registerShortcut() {
-        let hotKeyIDStruct = EventHotKeyID(signature: OSType(0x4B534854), id: hotKeyID)
+    private static func installSharedEventHandlerIfNeeded() {
+        guard sharedEventHandler == nil else { return }
+        
         var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
         
-        // Install the event handler (using static handler that dispatches to the right manager)
         InstallEventHandler(
             GetApplicationEventTarget(),
-            {(handlerRef, eventRef, userData) -> OSStatus in
+            { (handlerRef, eventRef, userData) -> OSStatus in
                 var hotkeyID = EventHotKeyID()
                 GetEventParameter(eventRef!, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), nil, MemoryLayout<EventHotKeyID>.size, nil, &hotkeyID)
                 
-                // Find the manager for this hotkey ID and call its action
                 if let manager = ShortcutManager.registeredManagers[hotkeyID.id] {
                     DispatchQueue.main.async {
                         manager.action()
@@ -151,8 +150,15 @@ class ShortcutManager {
             1,
             &eventType,
             nil,
-            &eventHandler
+            &sharedEventHandler
         )
+    }
+    
+    private func registerShortcut() {
+        let hotKeyIDStruct = EventHotKeyID(signature: OSType(0x4B534854), id: hotKeyID)
+        
+        // Install the shared event handler only once for all instances
+        ShortcutManager.installSharedEventHandlerIfNeeded()
         
         // Register the hotkey
         let modifiers = UInt32(keyCombo.modifiers.carbonFlags)
@@ -177,12 +183,6 @@ class ShortcutManager {
         if let hotKeyRef = hotKeyRef {
             UnregisterEventHotKey(hotKeyRef)
             self.hotKeyRef = nil
-        }
-        
-        // Remove the event handler
-        if let eventHandler = eventHandler {
-            RemoveEventHandler(eventHandler)
-            self.eventHandler = nil
         }
     }
 } 

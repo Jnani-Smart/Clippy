@@ -22,6 +22,11 @@ class ClipboardManager: ObservableObject {
     private var lastCopiedItemId: UUID?
     private let serialProcessingQueue = DispatchQueue(label: "com.clippy.serialProcessing")
     
+    // Supported image file extensions
+    private static let imageExtensions: Set<String> = [
+        "jpg", "jpeg", "png", "gif", "tiff", "tif", "bmp", "svg", "webp", "heic", "heif"
+    ]
+    
     // Enhanced sensitive content patterns
     private var sensitiveContentPatterns: [NSRegularExpression] = [
         try! NSRegularExpression(pattern: #"(?:\d[ -]*?){13,16}"#), // Credit card
@@ -183,10 +188,9 @@ class ClipboardManager: ObservableObject {
                         #endif
                         
                         // Check if this is an image file
-                        let imageExtensions = ["jpg", "jpeg", "png", "gif", "tiff", "tif", "bmp", "svg", "webp", "heic", "heif"]
                         let fileExtension = fileURL.pathExtension.lowercased()
                         
-                        if imageExtensions.contains(fileExtension) {
+                        if Self.imageExtensions.contains(fileExtension) {
                             #if DEBUG
                             print("📁 File is an image, attempting to load: \(fileURL)")
                             #endif
@@ -233,10 +237,9 @@ class ClipboardManager: ObservableObject {
                         #endif
                         
                         // Check if this is an image file
-                        let imageExtensions = ["jpg", "jpeg", "png", "gif", "tiff", "tif", "bmp", "svg", "webp", "heic", "heif"]
                         let fileExtension = fileURL.pathExtension.lowercased()
                         
-                        if imageExtensions.contains(fileExtension) {
+                        if Self.imageExtensions.contains(fileExtension) {
                             // Try to load the image data from the file
                             do {
                                 let imageData = try Data(contentsOf: fileURL)
@@ -725,31 +728,30 @@ class ClipboardManager: ObservableObject {
     private func saveItems() {
         let encoder = JSONEncoder()
         
-        // Create filtered versions for storage with size optimization
+        // Capture snapshot on the current (main) thread before dispatching
         let storableItems: [ClipboardItem] = clipboardItems.compactMap { item in
             // Skip large images for persistent storage
             if item.type == .image && (item.imageData?.count ?? 0) > 500000 {
                 return nil
             }
-            
             return item
         }
         
-        // Use background queue for saving
-        DispatchQueue.global(qos: .background).async {
-            // Save items with better error handling
+        let shouldEncrypt = UserDefaults.standard.bool(forKey: "encryptStorage")
+        
+        // Use background queue for encoding/writing only
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let self = self else { return }
             do {
                 let encoded = try encoder.encode(storableItems)
-                
-                // Encrypt the entire storage if privacy setting enabled
-                if UserDefaults.standard.bool(forKey: "encryptStorage") {
-                    let encryptedData = self.encryptData(encoded)
-                    UserDefaults.standard.set(encryptedData, forKey: "savedClipboardItems")
-                } else {
-                    UserDefaults.standard.set(encoded, forKey: "savedClipboardItems")
+                let dataToStore = shouldEncrypt ? self.encryptData(encoded) : encoded
+                DispatchQueue.main.async {
+                    UserDefaults.standard.set(dataToStore, forKey: "savedClipboardItems")
                 }
             } catch {
+                #if DEBUG
                 print("Error saving clipboard items: \(error)")
+                #endif
             }
         }
     }
@@ -886,99 +888,40 @@ class ClipboardManager: ObservableObject {
         // Validate input data
         guard let image = NSImage(data: data) else {
             #if DEBUG
-            print("❌ Cannot create NSImage from data")
-            // If it's potentially SVG data, let's check
-            if let svgString = String(data: data, encoding: .utf8), svgString.contains("<svg") {
-                print("🎨 Data appears to be SVG content, returning as-is for now")
-            }
-            print("❌ Returning original data")
+            print("❌ Cannot create NSImage from data, returning original")
             #endif
             return data
         }
         
-        // Use a serial background queue for image processing
-        let processingQueue = DispatchQueue(label: "com.clippy.imageProcessing", qos: .utility)
-        let result = DispatchSemaphore(value: 0)
+        // Process synchronously in an autorelease pool (already on serialProcessingQueue)
         var optimizedData = data
         
-        processingQueue.async {
-            autoreleasepool {
-                // Calculate target size - preserve aspect ratio but limit dimensions
-                // For Handoff images, use higher quality settings
-                let maxDimension: CGFloat = isFromHandoff ? 1200 : 800
-                let compressionQuality: Double = isFromHandoff ? 0.8 : 0.7
-                let originalSize = image.size
-                
-                #if DEBUG
-                print("🔧 Original image size: \(originalSize.width) x \(originalSize.height)")
-                #endif
-                
-                var targetSize = originalSize
-                if originalSize.width > maxDimension || originalSize.height > maxDimension {
-                    let aspectRatio = originalSize.width / originalSize.height
-                    
-                    if aspectRatio > 1 {
-                        // Width is larger
-                        targetSize = CGSize(width: maxDimension, height: maxDimension / aspectRatio)
-                    } else {
-                        // Height is larger or square
-                        targetSize = CGSize(width: maxDimension * aspectRatio, height: maxDimension)
-                    }
-                    
-                    #if DEBUG
-                    print("🔧 Target size: \(targetSize.width) x \(targetSize.height)")
-                    #endif
-                }
-                
-                // Check if we need to resize
-                if targetSize.width < originalSize.width {
-                    if let resizedData = image.resizedImageData(to: targetSize, compressionQuality: compressionQuality) {
-                        // Only use the resized version if it's actually smaller and valid
-                        if resizedData.count < data.count && !resizedData.isEmpty {
-                            optimizedData = resizedData
-                            #if DEBUG
-                            print("🔧 Resized image: \(data.count) -> \(resizedData.count) bytes")
-                            #endif
-                        } else {
-                            #if DEBUG
-                            print("🔧 Resizing didn't improve size or failed, keeping original")
-                            #endif
-                        }
-                    } else {
-                        #if DEBUG
-                        print("❌ Failed to resize image")
-                        #endif
-                    }
+        autoreleasepool {
+            let maxDimension: CGFloat = isFromHandoff ? 1200 : 800
+            let compressionQuality: Double = isFromHandoff ? 0.8 : 0.7
+            let originalSize = image.size
+            
+            var targetSize = originalSize
+            if originalSize.width > maxDimension || originalSize.height > maxDimension {
+                let aspectRatio = originalSize.width / originalSize.height
+                if aspectRatio > 1 {
+                    targetSize = CGSize(width: maxDimension, height: maxDimension / aspectRatio)
                 } else {
-                    // Just compress without resizing if dimensions are already small
-                    if let compressedData = image.compressedImageData(compressionQuality: compressionQuality) {
-                        if compressedData.count < data.count && !compressedData.isEmpty {
-                            optimizedData = compressedData
-                            #if DEBUG
-                            print("🔧 Compressed image: \(data.count) -> \(compressedData.count) bytes")
-                            #endif
-                        } else {
-                            #if DEBUG
-                            print("🔧 Compression didn't improve size or failed, keeping original")
-                            #endif
-                        }
-                    } else {
-                        #if DEBUG
-                        print("❌ Failed to compress image")
-                        #endif
-                    }
+                    targetSize = CGSize(width: maxDimension * aspectRatio, height: maxDimension)
                 }
             }
-            result.signal()
-        }
-        
-        // Wait for processing to complete with timeout
-        let waitResult = result.wait(timeout: .now() + 3.0) // Increased timeout
-        if waitResult == .timedOut {
-            #if DEBUG
-            print("⏰ Image processing timed out, returning original data")
-            #endif
-            return data
+            
+            if targetSize.width < originalSize.width {
+                if let resizedData = image.resizedImageData(to: targetSize, compressionQuality: compressionQuality),
+                   resizedData.count < data.count && !resizedData.isEmpty {
+                    optimizedData = resizedData
+                }
+            } else {
+                if let compressedData = image.compressedImageData(compressionQuality: compressionQuality),
+                   compressedData.count < data.count && !compressedData.isEmpty {
+                    optimizedData = compressedData
+                }
+            }
         }
         
         #if DEBUG
@@ -1008,8 +951,22 @@ class ClipboardManager: ObservableObject {
     
     private func savePinnedItems() {
         let encoder = JSONEncoder()
-        if let encoded = try? encoder.encode(pinnedItems) {
-            UserDefaults.standard.set(encoded, forKey: "pinnedClipboardItems")
+        let items = pinnedItems // capture snapshot
+        let shouldEncrypt = UserDefaults.standard.bool(forKey: "encryptStorage")
+        
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let self = self else { return }
+            do {
+                let encoded = try encoder.encode(items)
+                let dataToStore = shouldEncrypt ? self.encryptData(encoded) : encoded
+                DispatchQueue.main.async {
+                    UserDefaults.standard.set(dataToStore, forKey: "pinnedClipboardItems")
+                }
+            } catch {
+                #if DEBUG
+                print("Error saving pinned items: \(error)")
+                #endif
+            }
         }
     }
     

@@ -5,6 +5,7 @@ struct ShortcutRecorder: View {
     @Binding var keyCombo: KeyCombo?
     @State private var isRecording = false
     @State private var tempKeyCombo: KeyCombo?
+    @State private var eventMonitor: Any?
     
     var body: some View {
         HStack(spacing: 8) {
@@ -47,13 +48,16 @@ struct ShortcutRecorder: View {
                 Text("")
                     .foregroundColor(.secondary)
                     .onAppear {
-                        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                        eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
                             handleKeyDown(event)
                             return nil
                         }
                     }
                     .onDisappear {
-                        NSEvent.removeMonitor(self)
+                        if let monitor = eventMonitor {
+                            NSEvent.removeMonitor(monitor)
+                            eventMonitor = nil
+                        }
                     }
             }
             

@@ -318,10 +318,11 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         
         print("Creating new settings window with floating window style")
         
-        // Create a panel similar to the floating window style
+        // Create a panel — NOT using .nonactivatingPanel so the window properly activates,
+        // receives focus, and can be dragged on first open
         let window = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 450, height: 500),
-            styleMask: [.titled, .closable, .fullSizeContentView, .nonactivatingPanel],
+            styleMask: [.titled, .closable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
@@ -333,6 +334,9 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         window.center()
         window.title = "Settings"
         window.isReleasedWhenClosed = false
+        
+        // Allow dragging by the window background since titlebar is hidden
+        window.isMovableByWindowBackground = true
         
         // Make the window appear on top of all applications, including full screen apps
         window.level = .statusBar
@@ -411,9 +415,6 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         visualEffectView.addSubview(keyHandler)
         
         window.contentView = visualEffectView
-        
-        // Make keyHandler first responder to capture key events
-        window.initialFirstResponder = keyHandler
         
         // Set up constraints for proper layout
         NSLayoutConstraint.activate([
@@ -552,15 +553,12 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
             
             // Add subtle float animation
             let floatAnimation = CABasicAnimation(keyPath: "position.y")
-            floatAnimation.fromValue = contentView.layer?.position.y ?? 0 - 5
+            floatAnimation.fromValue = (contentView.layer?.position.y ?? 0) - 5
             floatAnimation.toValue = contentView.layer?.position.y
             floatAnimation.duration = 0.3
             floatAnimation.timingFunction = CAMediaTimingFunction(name: .easeOut)
             contentView.layer?.add(floatAnimation, forKey: "floatIn")
         }
-        
-        // Ensure app is active and window is visible
-        NSApp.activate(ignoringOtherApps: true)
         
         // Restore previous position if available BEFORE showing the window
         if let savedPosition = UserDefaults.standard.string(forKey: settingsWindowPositionKey) {
@@ -573,9 +571,15 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         // Save the reference
         settingsWindow = window
         
-        // Finally show the window with animation
+        // Activate the app FIRST, then show window — ensures proper key/main window status on first open
+        NSApp.activate(ignoringOtherApps: true)
         window.animator().alphaValue = 1.0
         window.makeKeyAndOrderFront(nil)
+        
+        // Ensure the key handler can receive ESC events after the window is fully set up
+        DispatchQueue.main.async {
+            window.makeFirstResponder(keyHandler)
+        }
     }
     
     @objc func quitApp() {
@@ -597,24 +601,23 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
     }
     
     @objc func showFloatingWindow() {
-        // Check if we're already in the process of showing a window
-        if isShowingFloatingWindow {
-            return
-        }
-        
         // If the window already exists, just bring it to front and return
         if let existingWindow = floatingWindow, !existingWindow.isVisible {
             existingWindow.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
             return
         } else if let existingWindow = floatingWindow, existingWindow.isVisible {
             // If window is already visible, just keep it open
             return
         }
         
+        // Check if we're already in the process of creating a window
+        if isShowingFloatingWindow {
+            return
+        }
+        
         // Check if clipboardManager is initialized - if not, we're not ready yet
         guard let clipboardManager = clipboardManager else {
-            // Reset the flag since we're not actually showing the window
-            isShowingFloatingWindow = false
             return
         }
         
@@ -1018,7 +1021,7 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
             
             // Add subtle float animation
             let floatAnimation = CABasicAnimation(keyPath: "position.y")
-            floatAnimation.fromValue = contentView.layer?.position.y ?? 0 - 5
+            floatAnimation.fromValue = (contentView.layer?.position.y ?? 0) - 5
             floatAnimation.toValue = contentView.layer?.position.y
             floatAnimation.duration = 0.3
             floatAnimation.timingFunction = CAMediaTimingFunction(name: .easeOut)
@@ -1305,39 +1308,6 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         }
     }
     
-    func showSettingsWindow() {
-        guard let clipboardManager = clipboardManager else { return }
-        
-        // Get current menu position
-        guard let screen = NSScreen.main else { return }
-        let menuXPosition = popover.contentViewController?.view.window?.frame.origin.x ?? screen.frame.midX
-        let screenMidX = screen.frame.midX
-        
-        // Position settings window on opposite side of screen from menu
-        let settingsWindow = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 400, height: 500),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
-            backing: .buffered,
-            defer: false
-        )
-        
-        settingsWindow.contentViewController = NSHostingController(
-            rootView: SettingsView(isPresented: .constant(true))
-                .environmentObject(clipboardManager)
-                .environmentObject(self)
-        )
-        
-        settingsWindow.center()
-        
-        // Adjust position based on menu location
-        let newX = menuXPosition < screenMidX ? 
-            screen.frame.maxX - settingsWindow.frame.width - 20 : 
-            20
-        
-        settingsWindow.setFrameOrigin(NSPoint(x: newX, y: settingsWindow.frame.origin.y))
-        settingsWindow.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
-    }
 }
 
 // KeyEventHandlerView for intercepting ESC key events
@@ -1367,18 +1337,24 @@ class CloseButtonWithHover: NSButton {
         self.normalColor = normalColor
         self.hoverColor = hoverColor
         super.init(frame: frame)
-        
-        // Add tracking area for hover events
-        self.addTrackingArea(NSTrackingArea(
-            rect: self.bounds,
-            options: [.mouseEnteredAndExited, .activeInActiveApp],
-            owner: self,
-            userInfo: nil)
-        )
     }
     
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+    
+    // Use updateTrackingAreas so the tracking rect matches the actual bounds after layout
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        for area in trackingAreas {
+            removeTrackingArea(area)
+        }
+        addTrackingArea(NSTrackingArea(
+            rect: bounds,
+            options: [.mouseEnteredAndExited, .activeInActiveApp],
+            owner: self,
+            userInfo: nil)
+        )
     }
     
     override func mouseEntered(with event: NSEvent) {
