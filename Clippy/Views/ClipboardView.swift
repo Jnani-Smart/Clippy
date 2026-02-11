@@ -114,12 +114,14 @@ struct ClipboardView: View {
         ZStack {
             // More efficient background - use native material only when needed
             #if os(macOS)
-            // Glass window background - darker base so items stand out
-            if #available(macOS 12.0, *) {
+            if #available(macOS 26.0, *) {
+                // On macOS 26+, liquid glass handles the window chrome
+                Color.clear
+                    .ignoresSafeArea()
+            } else if #available(macOS 12.0, *) {
                 ZStack {
                     Rectangle()
                         .fill(.ultraThinMaterial)
-                    // Dark tint to push the background deeper
                     Rectangle()
                         .fill(Color.black.opacity(colorScheme == .dark ? 0.35 : 0.05))
                 }
@@ -330,15 +332,7 @@ struct ClipboardView: View {
                     }
                     .padding(.horizontal, 4)
                     .padding(.vertical, 3)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(.thickMaterial)
-                            .shadow(color: Color.black.opacity(0.1), radius: 6, x: 0, y: 3)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .strokeBorder(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.2), lineWidth: 0.5)
-                    )
+                    .modifier(GlassCardModifier(cornerRadius: 16))
                     .padding(.horizontal, 16)
                     .padding(.top, 4)
                     .animation(.spring(response: 0.3, dampingFraction: 0.7), value: segmentedSelection)
@@ -354,15 +348,7 @@ struct ClipboardView: View {
                         .foregroundColor(.orange)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 5)
-                        .background(
-                            Capsule()
-                                .fill(.thickMaterial)
-                                .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
-                        )
-                        .overlay(
-                            Capsule()
-                                .strokeBorder(Color.orange.opacity(0.3), lineWidth: 0.5)
-                        )
+                        .modifier(GlassCapsuleModifier())
                         .padding(.bottom, 8)
                         .transition(.opacity.combined(with: .scale(scale: 0.9)).combined(with: .move(edge: .bottom)))
                 }
@@ -424,14 +410,7 @@ struct ClipboardView: View {
                             .foregroundColor(.secondary)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(.thickMaterial)
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .stroke(Color.secondary.opacity(0.2), lineWidth: 0.5)
-                            )
+                            .modifier(GlassInteractiveModifier(cornerRadius: 10))
                         }
                         .buttonStyle(BorderlessButtonStyle())
                     }
@@ -556,15 +535,7 @@ struct ClipboardView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.thickMaterial)
-                .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 4)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.2), lineWidth: 0.5)
-        )
+        .modifier(GlassCardModifier(cornerRadius: 16))
         .padding(.horizontal, 16)
         .padding(.bottom, 8)
     }
@@ -674,17 +645,9 @@ struct ClipboardView: View {
                 if selectedCategory == category {
                     RoundedRectangle(cornerRadius: 10)
                         .fill(Color.accentColor)
-                        .shadow(color: Color.black.opacity(0.12), radius: 3, x: 0, y: 2)
-                } else {
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(.thickMaterial)
-                        .shadow(color: Color.black.opacity(0.06), radius: 3, x: 0, y: 2)
                 }
             }
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .strokeBorder(selectedCategory == category ? Color.accentColor : Color.white.opacity(colorScheme == .dark ? 0.08 : 0.15), lineWidth: 0.5)
-            )
+            .modifier(GlassInteractiveModifier(cornerRadius: 10))
         }
         .buttonStyle(BorderlessButtonStyle())
         .contentShape(Rectangle())

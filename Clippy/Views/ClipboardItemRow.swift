@@ -18,17 +18,10 @@ struct ClipboardItemRow: View {
         mainContent
             .padding(.vertical, 7)
             .padding(.horizontal, 8)
-            .background(backgroundShape)
-            .overlay(borderShape)
-            .shadow(
-                color: Color.black.opacity(colorScheme == .dark ? 0.45 : 0.12),
-                radius: isHovered ? 6 : 3,
-                x: 0,
-                y: isHovered ? 2 : 1
-            )
+            .modifier(GlassItemModifier(isHovered: isHovered))
             .scaleEffect(isHovered ? 1.01 : 1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHovered)
-            .frame(maxWidth: .infinity, alignment: .leading) // Ensure consistent alignment
+            .frame(maxWidth: .infinity, alignment: .leading)
             .onDrag {
                 switch item.type {
                 case .text:
@@ -44,7 +37,6 @@ struct ClipboardItemRow: View {
                         return NSItemProvider(object: image)
                     }
                 }
-                // Fallback: provide preview string
                 return NSItemProvider(object: item.preview as NSString)
             }
     }
@@ -112,36 +104,7 @@ struct ClipboardItemRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
     
-    // Background shape – bright glass card lifted off the dark background
-    @ViewBuilder
-    private var backgroundShape: some View {
-        if isHovered {
-            RoundedRectangle(cornerRadius: 12)
-                .fill(.thickMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.accentColor.opacity(colorScheme == .dark ? 0.18 : 0.12))
-                )
-        } else {
-            RoundedRectangle(cornerRadius: 12)
-                .fill(.thickMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.white.opacity(colorScheme == .dark ? 0.06 : 0.3))
-                )
-        }
-    }
-    
-    // Border – bright edge highlight for glass depth
-    private var borderShape: some View {
-        RoundedRectangle(cornerRadius: 12)
-            .strokeBorder(
-                isHovered
-                ? Color.accentColor.opacity(colorScheme == .dark ? 0.5 : 0.4)
-                : Color.white.opacity(colorScheme == .dark ? 0.18 : 0.4),
-                lineWidth: 0.5
-            )
-    }
+
     
     // Save image with standard save panel
     private func saveImage() {
@@ -237,18 +200,7 @@ struct ClipboardItemRow: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 3)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(language.color.opacity(0.1))
-                )
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .strokeBorder(language.color.opacity(0.3), lineWidth: 0.5)
-        )
+        .modifier(GlassCardModifier(cornerRadius: 8))
     }
     
     // Code snippet component
@@ -270,18 +222,7 @@ struct ClipboardItemRow: View {
             .lineLimit(showFullContent ? 6 : 3)
             .fixedSize(horizontal: false, vertical: true)
             .padding(8)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(.ultraThinMaterial)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .strokeBorder(
-                        Color.white.opacity(colorScheme == .dark ? 0.08 : 0.15),
-                        lineWidth: 0.5
-                    )
-            )
+            .modifier(GlassCardModifier(cornerRadius: 8))
     }
     
     @ViewBuilder

@@ -2,26 +2,34 @@ import SwiftUI
 
 struct VisionOSButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(
-                ZStack {
-                    // Glass effect background
-                    VisionOSVisualEffectView(material: .popover, blendingMode: .withinWindow)
-                    
-                    // Hover/active state overlay
-                    Color.white.opacity(configuration.isPressed ? 0.2 : 0.1)
-                }
-                .cornerRadius(8)
-            )
-            .foregroundColor(.primary)
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
-            )
-            .scaleEffect(configuration.isPressed ? 0.95 : 1)
-            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+        if #available(macOS 26.0, *) {
+            configuration.label
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .foregroundColor(.primary)
+                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 10))
+                .scaleEffect(configuration.isPressed ? 0.95 : 1)
+                .opacity(configuration.isPressed ? 0.85 : 1)
+                .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+        } else {
+            configuration.label
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(
+                    ZStack {
+                        VisionOSVisualEffectView(material: .popover, blendingMode: .withinWindow)
+                        Color.white.opacity(configuration.isPressed ? 0.2 : 0.1)
+                    }
+                    .cornerRadius(10)
+                )
+                .foregroundColor(.primary)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.white.opacity(0.15), lineWidth: 0.5)
+                )
+                .scaleEffect(configuration.isPressed ? 0.95 : 1)
+                .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+        }
     }
 }
 

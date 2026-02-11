@@ -22,21 +22,15 @@ struct SearchBar: View {
                     isEditing = true
                 }
                 .onChange(of: text) {
-                    // Debug logging
-                    print("Search text changed to: \(text)")
-                    // This explicit notification of change helps update the search immediately
                     NotificationCenter.default.post(name: NSNotification.Name("SearchTextChanged"), object: nil)
                 }
-                // Submit handler to ensure search is triggered on Return key
                 .onSubmit {
-                    print("Search submitted with: \(text)")
                     NotificationCenter.default.post(name: NSNotification.Name("SearchTextChanged"), object: nil)
                 }
             
             if !text.isEmpty {
                 Button(action: {
                     text = ""
-                    // Explicitly trigger search update when clearing text
                     NotificationCenter.default.post(name: NSNotification.Name("SearchTextChanged"), object: nil)
                 }) {
                     Image(systemName: "xmark.circle.fill")
@@ -52,8 +46,6 @@ struct SearchBar: View {
             Button(action: {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                     showCategoryBar.toggle()
-                    
-                    // If hiding the category bar, reset to "All" categories
                     if !showCategoryBar {
                         selectedCategory = nil
                     }
@@ -68,14 +60,121 @@ struct SearchBar: View {
             .buttonStyle(BorderlessButtonStyle())
             .help("Toggle Category Filter")
         }
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(.thickMaterial)
-                .shadow(color: Color.black.opacity(0.08), radius: 4, x: 0, y: 2)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.2), lineWidth: 0.5)
-        )
+        .modifier(GlassCardModifier(cornerRadius: 12))
     }
-} 
+}
+
+// MARK: - Reusable Liquid Glass modifier with fallback
+
+struct GlassCardModifier: ViewModifier {
+    var cornerRadius: CGFloat = 12
+    @Environment(\.colorScheme) private var colorScheme
+    
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content
+                .glassEffect(.regular, in: .rect(cornerRadius: cornerRadius))
+        } else {
+            content
+                .background(
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .fill(.thickMaterial)
+                        .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .strokeBorder(Color.white.opacity(colorScheme == .dark ? 0.12 : 0.25), lineWidth: 0.5)
+                )
+        }
+    }
+}
+
+struct GlassInteractiveModifier: ViewModifier {
+    var cornerRadius: CGFloat = 12
+    @Environment(\.colorScheme) private var colorScheme
+    
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content
+                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: cornerRadius))
+        } else {
+            content
+                .background(
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .fill(.thickMaterial)
+                        .shadow(color: Color.black.opacity(0.08), radius: 3, x: 0, y: 2)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .strokeBorder(Color.white.opacity(colorScheme == .dark ? 0.12 : 0.25), lineWidth: 0.5)
+                )
+        }
+    }
+}
+
+struct GlassCapsuleModifier: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+    
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content
+                .glassEffect(.regular, in: .capsule)
+        } else {
+            content
+                .background(
+                    Capsule()
+                        .fill(.thickMaterial)
+                        .shadow(color: Color.black.opacity(0.1), radius: 6, x: 0, y: 3)
+                )
+                .overlay(
+                    Capsule()
+                        .strokeBorder(Color.white.opacity(colorScheme == .dark ? 0.12 : 0.25), lineWidth: 0.5)
+                )
+        }
+    }
+}
+
+// Glass modifier for clipboard item cards with hover state
+struct GlassItemModifier: ViewModifier {
+    var isHovered: Bool
+    var cornerRadius: CGFloat = 12
+    @Environment(\.colorScheme) private var colorScheme
+    
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content
+                .background {
+                    if isHovered {
+                        RoundedRectangle(cornerRadius: cornerRadius)
+                            .fill(Color.accentColor.opacity(0.12))
+                    }
+                }
+                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: cornerRadius))
+        } else {
+            content
+                .background(
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .fill(.thickMaterial)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: cornerRadius)
+                                .fill(isHovered ? Color.accentColor.opacity(0.15) : Color.white.opacity(colorScheme == .dark ? 0.06 : 0.3))
+                        )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .strokeBorder(
+                            isHovered
+                            ? Color.accentColor.opacity(0.5)
+                            : Color.white.opacity(colorScheme == .dark ? 0.15 : 0.35),
+                            lineWidth: 0.5
+                        )
+                )
+                .shadow(
+                    color: Color.black.opacity(colorScheme == .dark ? 0.4 : 0.1),
+                    radius: isHovered ? 6 : 3,
+                    x: 0,
+                    y: isHovered ? 2 : 1
+                )
+        }
+    }
+}

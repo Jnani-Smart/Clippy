@@ -164,42 +164,13 @@ struct PasteQueueView: View {
         .background {
             if index == 0 {
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(.thickMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.orange.opacity(colorScheme == .dark ? 0.15 : 0.1))
-                    )
+                    .fill(Color.orange.opacity(colorScheme == .dark ? 0.15 : 0.1))
             } else if hoveredItemId == item.id {
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(.thickMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.accentColor.opacity(colorScheme == .dark ? 0.12 : 0.08))
-                    )
-            } else {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(.thickMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.white.opacity(colorScheme == .dark ? 0.06 : 0.3))
-                    )
+                    .fill(Color.accentColor.opacity(0.1))
             }
         }
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(
-                    index == 0 
-                    ? Color.orange.opacity(colorScheme == .dark ? 0.5 : 0.4) 
-                    : Color.white.opacity(colorScheme == .dark ? 0.18 : 0.4),
-                    lineWidth: 0.5
-                )
-        )
-        .shadow(
-            color: Color.black.opacity(colorScheme == .dark ? 0.45 : 0.12),
-            radius: hoveredItemId == item.id ? 6 : 3,
-            x: 0,
-            y: hoveredItemId == item.id ? 2 : 1
-        )
+        .modifier(GlassItemModifier(isHovered: hoveredItemId == item.id, cornerRadius: 12))
         .contentShape(Rectangle())
         .onHover { isHovered in
             withAnimation(.easeInOut(duration: 0.15)) {
