@@ -92,19 +92,19 @@ struct ClipboardView: View {
     private var topMaskHeight: CGFloat {
         if isSelectMode {
             // Select mode: title + search bar only (no segmented bar)
-            return showCategoryBar ? 85 : 55
+            return showCategoryBar ? 79 : 49
         } else {
             // Normal mode: title + search bar + segmented bar
-            return showCategoryBar ? 100 : 65
+            return showCategoryBar ? 94 : 59
         }
     }
     
     // Dynamic content top padding — keeps items positioned below the floating header
     private var contentTopPadding: CGFloat {
         if isSelectMode {
-            return showCategoryBar ? 100 : 65
+            return showCategoryBar ? 94 : 59
         } else {
-            return showCategoryBar ? 135 : 100
+            return showCategoryBar ? 129 : 94
         }
     }
     
@@ -441,7 +441,7 @@ struct ClipboardView: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.top, 8)
+            .padding(.top, 2)
 
             SearchBar(text: $searchText, showCategoryBar: $showCategoryBar, selectedCategory: $selectedCategory)
                 .padding(.horizontal, 16)

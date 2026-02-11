@@ -143,29 +143,23 @@ struct GlassItemModifier: ViewModifier {
     func body(content: Content) -> some View {
         if #available(macOS 26.0, *) {
             content
-                .background {
-                    if isHovered {
-                        RoundedRectangle(cornerRadius: cornerRadius)
-                            .fill(Color.accentColor.opacity(0.12))
-                    }
-                }
+                .background(
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .fill(isHovered ? Color.accentColor.opacity(0.12) : Color.gray.opacity(colorScheme == .dark ? 0.18 : 0.10))
+                )
                 .glassEffect(.regular.interactive(), in: .rect(cornerRadius: cornerRadius))
         } else {
             content
                 .background(
                     RoundedRectangle(cornerRadius: cornerRadius)
-                        .fill(.thickMaterial)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: cornerRadius)
-                                .fill(isHovered ? Color.accentColor.opacity(0.15) : Color.white.opacity(colorScheme == .dark ? 0.06 : 0.3))
-                        )
+                        .fill(isHovered ? Color.accentColor.opacity(0.15) : Color.gray.opacity(colorScheme == .dark ? 0.18 : 0.10))
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: cornerRadius)
                         .strokeBorder(
                             isHovered
                             ? Color.accentColor.opacity(0.5)
-                            : Color.white.opacity(colorScheme == .dark ? 0.15 : 0.35),
+                            : Color.gray.opacity(colorScheme == .dark ? 0.25 : 0.20),
                             lineWidth: 0.5
                         )
                 )
