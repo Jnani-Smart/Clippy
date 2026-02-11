@@ -225,9 +225,26 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         // Initialize AutoUpdater service
         initializeAutoUpdater()
         
-        // Show floating window automatically at startup
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            self?.showFloatingWindow()
+        // Check first launch BEFORE showing anything
+        let isFirstLaunch = FirstLaunchManager.shared.isFirstLaunch
+        
+        if isFirstLaunch {
+            // First launch: show only the onboarding, no clipboard window
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                OnboardingWindowController.shared.showOnboarding()
+            }
+            // Show clipboard window after onboarding completes
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(showFloatingWindow),
+                name: NSNotification.Name("OnboardingDidComplete"),
+                object: nil
+            )
+        } else {
+            // Normal launch: show floating clipboard window
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                self?.showFloatingWindow()
+            }
         }
     }
     

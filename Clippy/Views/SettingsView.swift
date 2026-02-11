@@ -269,15 +269,8 @@ struct SettingsView: View {
     @State private var isResettingDefaults = false
     @EnvironmentObject private var clipboardManager: ClipboardManager
     @State private var keyEventMonitor: Any?
-    @State private var showConfetti = false
-    @State private var showThankYou = false
     @State private var excludedApps: [String] = []
     @AppStorage("encryptStorage") private var encryptStorage = false
-    
-    // Check if this is the first launch
-    private var isFirstLaunch: Bool {
-        !UserDefaults.standard.bool(forKey: "hasLaunchedBefore")
-    }
     
     // MARK: - Window Configuration
     
@@ -330,9 +323,6 @@ struct SettingsView: View {
         
         // Set up event monitoring
         setupEventMonitoring()
-        
-        // Handle first launch
-        handleFirstLaunch()
     }
     
     private func initializeKeyboardShortcuts() {
@@ -377,23 +367,6 @@ struct SettingsView: View {
                 return nil // Consume the event
             }
             return event // Pass other events through
-        }
-    }
-    
-    private func handleFirstLaunch() {
-        // Check if this is the first launch of the app
-        if isFirstLaunch {
-            // Select the About tab
-            selectedTab = 5
-            
-            // Delay to ensure view is fully loaded
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                showThankYou = true
-                showConfetti = true
-                
-                // Mark as launched
-                UserDefaults.standard.set(true, forKey: "hasLaunchedBefore")
-            }
         }
     }
     
@@ -1070,17 +1043,6 @@ struct SettingsView: View {
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 20)
-            .overlay(
-                ZStack {
-                    // iMessage-style confetti animation with perfect timing
-                    EnhancedConfettiView(isActive: $showConfetti, duration: 3.5, intensity: 120, burstDuration: 0.3)
-                    
-                    // Enhanced thank you message overlay with improved animations
-                    if showThankYou {
-                        EnhancedThankYouView(isShowing: $showThankYou)
-                    }
-                }
-            )
         }
     }
     
