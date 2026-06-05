@@ -1163,48 +1163,41 @@ struct ClipboardView: View {
     }
 
     private func selectedItemForKeyboardAction() -> ClipboardItem? {
-        guard !showQuickLook, segmentedSelection != 2 else {
-            return nil
-        }
+        guard let itemId = ClipboardKeyboardNavigation.actionItemId(
+            hoveredId: hoveredItemId,
+            selectedId: keyboardSelectedItemId,
+            itemIds: filteredItems.map { $0.id },
+            isQuickLookPresented: showQuickLook,
+            isQueueTabSelected: segmentedSelection == 2
+        ) else { return nil }
 
-        let activeId = hoveredItemId ?? keyboardSelectedItemId
-        guard let activeId = activeId else {
-            return filteredItems.first
-        }
-
-        return filteredItems.first { $0.id == activeId } ?? filteredItems.first
+        return filteredItems.first { $0.id == itemId }
     }
 
     private func ensureKeyboardSelectionIsValid() {
-        guard segmentedSelection != 2, !filteredItems.isEmpty else {
-            keyboardSelectedItemId = nil
-            pendingScrollItemId = nil
-            return
-        }
+        let itemIds = filteredItems.map { $0.id }
+        let validId = ClipboardKeyboardNavigation.validSelectionId(
+            selectedId: keyboardSelectedItemId,
+            itemIds: itemIds,
+            isQueueTabSelected: segmentedSelection == 2
+        )
 
-        if let selectedId = keyboardSelectedItemId,
-           filteredItems.contains(where: { $0.id == selectedId }) {
-            pendingScrollItemId = selectedId
-            return
-        }
-
-        keyboardSelectedItemId = filteredItems.first?.id
-        pendingScrollItemId = keyboardSelectedItemId
+        keyboardSelectedItemId = validId
+        pendingScrollItemId = validId
     }
 
     @discardableResult
     private func moveKeyboardSelection(by offset: Int) -> Bool {
-        guard !showQuickLook, segmentedSelection != 2, !filteredItems.isEmpty else {
+        guard let nextId = ClipboardKeyboardNavigation.nextSelectionId(
+            selectedId: keyboardSelectedItemId,
+            hoveredId: hoveredItemId,
+            itemIds: filteredItems.map { $0.id },
+            offset: offset,
+            isQuickLookPresented: showQuickLook,
+            isQueueTabSelected: segmentedSelection == 2
+        ) else {
             return false
         }
-
-        let currentId = keyboardSelectedItemId ?? hoveredItemId
-        let currentIndex = currentId.flatMap { id in
-            filteredItems.firstIndex { $0.id == id }
-        } ?? (offset > 0 ? -1 : filteredItems.count)
-
-        let nextIndex = (currentIndex + offset + filteredItems.count) % filteredItems.count
-        let nextId = filteredItems[nextIndex].id
 
         withAnimation(.easeInOut(duration: 0.12)) {
             keyboardSelectedItemId = nextId
