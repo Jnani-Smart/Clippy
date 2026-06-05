@@ -111,11 +111,12 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         
         if !accessEnabled {
             // Show alert to instruct user to enable permissions
+            NSApp.activate(ignoringOtherApps: true)
             let alert = NSAlert()
             alert.messageText = "Accessibility Permissions Required"
-            alert.informativeText = "Please grant accessibility permissions in System Preferences → Security & Privacy → Privacy → Accessibility to enable keyboard shortcuts."
+            alert.informativeText = "Please grant Accessibility access in System Settings → Privacy & Security → Accessibility to enable keyboard shortcuts. If Clippy does not appear in the list, add Clippy.app manually with the + button."
             alert.alertStyle = .warning
-            alert.addButton(withTitle: "Open System Preferences")
+            alert.addButton(withTitle: "Open System Settings")
             alert.addButton(withTitle: "Later")
             
             if alert.runModal() == .alertFirstButtonReturn {
@@ -1365,11 +1366,25 @@ class KeyEventHandlerView: NSView {
     }
     
     override func keyDown(with event: NSEvent) {
-        if event.keyCode == 53 { // ESC key
-            onEsc?()
-        } else {
-            super.keyDown(with: event)
+        switch event.keyCode {
+        case 36, 49, 53, 76, 125, 126:
+            let keyEvent = ClipboardHistoryKeyEvent(keyCode: event.keyCode)
+            NotificationCenter.default.post(name: .clipboardHistoryKeyDown, object: keyEvent)
+
+            if keyEvent.handled {
+                return
+            }
+
+            if event.keyCode == 53 { // ESC key
+                onEsc?()
+                return
+            }
+            fallthrough
+        default:
+            break
         }
+
+        super.keyDown(with: event)
     }
 }
 

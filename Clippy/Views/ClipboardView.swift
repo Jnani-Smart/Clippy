@@ -14,6 +14,19 @@ struct ScrollOffsetPreferenceKey: PreferenceKey {
     }
 }
 
+extension Notification.Name {
+    static let clipboardHistoryKeyDown = Notification.Name("ClipboardHistoryKeyDown")
+}
+
+final class ClipboardHistoryKeyEvent {
+    let keyCode: UInt16
+    var handled = false
+
+    init(keyCode: UInt16) {
+        self.keyCode = keyCode
+    }
+}
+
 // Enhanced visual effect view with modern styling
 struct VisualEffectView: NSViewRepresentable {
     var material: NSVisualEffectView.Material
@@ -54,6 +67,8 @@ struct ClipboardView: View {
     @ObservedObject var pasteQueueManager = PasteQueueManager.shared
     @State private var searchText = ""
     @State private var hoveredItemId: UUID? = nil
+    @State private var keyboardSelectedItemId: UUID? = nil
+    @State private var pendingScrollItemId: UUID? = nil
     @State private var isClearing = false
     @State private var trashFilled = false
     @Environment(\.colorScheme) private var colorScheme
@@ -259,25 +274,16 @@ struct ClipboardView: View {
             }
         }
         .onAppear {
-            keyEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-                // Spacebar: keyCode 49
-                if event.keyCode == 49 {
-                    if let hoveredId = hoveredItemId, let item = filteredItems.first(where: { $0.id == hoveredId }), canShowQuickLook(for: item) {
-                        showQuickLook(for: item)
-                        return nil // Consume event
-                    }
+            ensureKeyboardSelectionIsValid()
+            keyEventMonitor = NotificationCenter.default.addObserver(
+                forName: .clipboardHistoryKeyDown,
+                object: nil,
+                queue: nil
+            ) { notification in
+                guard let keyEvent = notification.object as? ClipboardHistoryKeyEvent else {
+                    return
                 }
-                // Escape: keyCode 53 (for select mode exit)
-                if event.keyCode == 53 {
-                    if isSelectMode {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                            isSelectMode = false
-                            selectedItems.removeAll()
-                        }
-                        return nil // Consume event
-                    }
-                }
-                return event
+                keyEvent.handled = handleKeyboardEvent(keyCode: keyEvent.keyCode)
             }
         }
         .onDisappear {
@@ -303,6 +309,12 @@ struct ClipboardView: View {
                     segmentedSelection = 0 // Switch to Recent tab
                 }
             }
+        }
+        .onChange(of: segmentedSelection) {
+            ensureKeyboardSelectionIsValid()
+        }
+        .onChange(of: filteredItems.map { $0.id }) {
+            ensureKeyboardSelectionIsValid()
         }
     }
     
@@ -837,33 +849,43 @@ struct ClipboardView: View {
     }
     
     private var clipboardItemsListView: some View {
-        ScrollView {
-            LazyVStack(spacing: isSelectMode ? 4 : 3) {
-                // Scroll offset tracker
-                GeometryReader { geo in
-                    Color.clear
-                        .preference(key: ScrollOffsetPreferenceKey.self, value: geo.frame(in: .named("scroll")).minY)
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: isSelectMode ? 4 : 3) {
+                    // Scroll offset tracker
+                    GeometryReader { geo in
+                        Color.clear
+                            .preference(key: ScrollOffsetPreferenceKey.self, value: geo.frame(in: .named("scroll")).minY)
+                    }
+                    .frame(height: 0)
+                    
+                    ForEach(filteredItems) { item in
+                        clipboardItemRow(for: item)
+                            .id(item.id)
+                            .transition(.asymmetric(
+                                insertion: .opacity.combined(with: .scale(scale: 0.96, anchor: .center)),
+                                removal: .opacity.combined(with: .scale(scale: 0.94, anchor: .center))
+                            ))
+                    }
                 }
-                .frame(height: 0)
-                
-                ForEach(filteredItems) { item in
-                    clipboardItemRow(for: item)
-                        .transition(.asymmetric(
-                            insertion: .opacity.combined(with: .scale(scale: 0.96, anchor: .center)),
-                            removal: .opacity.combined(with: .scale(scale: 0.94, anchor: .center))
-                        ))
+                .padding(.top, contentTopPadding) // Floating header + tab bar space
+                .padding(.bottom, 55) // Floating footer pill space
+                .padding(.horizontal, isSelectMode ? 0 : 8)
+                .animation(.spring(response: 0.25, dampingFraction: 0.75), value: filteredItems.map { $0.id })
+                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSelectMode)
+                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showCategoryBar)
+            }
+            .coordinateSpace(name: "scroll")
+            .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
+                handleScrollChange(newOffset: value)
+            }
+            .onChange(of: pendingScrollItemId) { _, itemId in
+                if let itemId = itemId {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        proxy.scrollTo(itemId, anchor: .center)
+                    }
                 }
             }
-            .padding(.top, contentTopPadding) // Floating header + tab bar space
-            .padding(.bottom, 55) // Floating footer pill space
-            .padding(.horizontal, isSelectMode ? 0 : 8)
-            .animation(.spring(response: 0.25, dampingFraction: 0.75), value: filteredItems.map { $0.id })
-            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSelectMode)
-            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showCategoryBar)
-        }
-        .coordinateSpace(name: "scroll")
-        .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
-            handleScrollChange(newOffset: value)
         }
     }
     
@@ -894,7 +916,7 @@ struct ClipboardView: View {
             
             ClipboardItemRow(
                 item: item,
-                isHovered: hoveredItemId == item.id,
+                isHovered: hoveredItemId == item.id || keyboardSelectedItemId == item.id,
                 showFullContent: expandableItemId == item.id,
                 clipboardManager: clipboardManager
             )
@@ -925,15 +947,10 @@ struct ClipboardView: View {
         .onTapGesture {
             if isSelectMode {
                 // Handle selection in select mode
-                withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
-                    if selectedItems.contains(item.id) {
-                        selectedItems.remove(item.id)
-                    } else {
-                        selectedItems.insert(item.id)
-                    }
-                }
+                toggleSelection(for: item)
             } else {
                 // Normal tap behavior
+                keyboardSelectedItemId = item.id
                 handleItemTap(item)
             }
         }
@@ -1105,12 +1122,116 @@ struct ClipboardView: View {
         // Close the current window efficiently
         closeWindow()
     }
+
+    private func handleKeyboardEvent(keyCode: UInt16) -> Bool {
+        // Spacebar: keyCode 49
+        if keyCode == 49 {
+            if let item = selectedItemForKeyboardAction(), canShowQuickLook(for: item) {
+                showQuickLook(for: item)
+                return true
+            }
+        }
+        // Up arrow: keyCode 126
+        if keyCode == 126 {
+            return moveKeyboardSelection(by: -1)
+        }
+        // Down arrow: keyCode 125
+        if keyCode == 125 {
+            return moveKeyboardSelection(by: 1)
+        }
+        // Return/Enter: keyCode 36, keypad enter: keyCode 76
+        if keyCode == 36 || keyCode == 76 {
+            if let item = selectedItemForKeyboardAction() {
+                if isSelectMode {
+                    toggleSelection(for: item)
+                } else {
+                    handleItemTap(item)
+                }
+                return true
+            }
+        }
+        // Escape: keyCode 53
+        if keyCode == 53, isSelectMode {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                isSelectMode = false
+                selectedItems.removeAll()
+            }
+            return true
+        }
+
+        return false
+    }
+
+    private func selectedItemForKeyboardAction() -> ClipboardItem? {
+        guard !showQuickLook, segmentedSelection != 2 else {
+            return nil
+        }
+
+        let activeId = hoveredItemId ?? keyboardSelectedItemId
+        guard let activeId = activeId else {
+            return filteredItems.first
+        }
+
+        return filteredItems.first { $0.id == activeId } ?? filteredItems.first
+    }
+
+    private func ensureKeyboardSelectionIsValid() {
+        guard segmentedSelection != 2, !filteredItems.isEmpty else {
+            keyboardSelectedItemId = nil
+            pendingScrollItemId = nil
+            return
+        }
+
+        if let selectedId = keyboardSelectedItemId,
+           filteredItems.contains(where: { $0.id == selectedId }) {
+            pendingScrollItemId = selectedId
+            return
+        }
+
+        keyboardSelectedItemId = filteredItems.first?.id
+        pendingScrollItemId = keyboardSelectedItemId
+    }
+
+    @discardableResult
+    private func moveKeyboardSelection(by offset: Int) -> Bool {
+        guard !showQuickLook, segmentedSelection != 2, !filteredItems.isEmpty else {
+            return false
+        }
+
+        let currentId = keyboardSelectedItemId ?? hoveredItemId
+        let currentIndex = currentId.flatMap { id in
+            filteredItems.firstIndex { $0.id == id }
+        } ?? (offset > 0 ? -1 : filteredItems.count)
+
+        let nextIndex = (currentIndex + offset + filteredItems.count) % filteredItems.count
+        let nextId = filteredItems[nextIndex].id
+
+        withAnimation(.easeInOut(duration: 0.12)) {
+            keyboardSelectedItemId = nextId
+            expandableItemId = nil
+        }
+        pendingScrollItemId = nextId
+        return true
+    }
+
+    private func toggleSelection(for item: ClipboardItem) {
+        withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
+            if selectedItems.contains(item.id) {
+                selectedItems.remove(item.id)
+            } else {
+                selectedItems.insert(item.id)
+            }
+        }
+    }
     
     private func handleItemHover(isHovered: Bool, item: ClipboardItem) {
         // Always track hovered item for visual feedback
         DispatchQueue.main.async {
             withAnimation(.easeInOut(duration: 0.15)) {
                 hoveredItemId = isHovered ? item.id : nil
+                if isHovered {
+                    keyboardSelectedItemId = item.id
+                }
             }
         }
         
@@ -1401,32 +1522,42 @@ struct ClipboardView: View {
                 // Reuse the empty state for filtered pinned items
                 emptyStateView
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 3) {
-                        // Scroll offset tracker
-                        GeometryReader { geo in
-                            Color.clear
-                                .preference(key: ScrollOffsetPreferenceKey.self, value: geo.frame(in: .named("pinnedScroll")).minY)
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(spacing: 3) {
+                            // Scroll offset tracker
+                            GeometryReader { geo in
+                                Color.clear
+                                    .preference(key: ScrollOffsetPreferenceKey.self, value: geo.frame(in: .named("pinnedScroll")).minY)
+                            }
+                            .frame(height: 0)
+                            
+                            ForEach(filteredItems) { item in
+                                clipboardItemRow(for: item)
+                                    .id(item.id)
+                                    .transition(.asymmetric(
+                                        insertion: .opacity.combined(with: .scale(scale: 0.96, anchor: .center)),
+                                        removal: .opacity.combined(with: .scale(scale: 0.94, anchor: .center))
+                                    ))
+                            }
                         }
-                        .frame(height: 0)
-                        
-                        ForEach(filteredItems) { item in
-                            clipboardItemRow(for: item)
-                                .transition(.asymmetric(
-                                    insertion: .opacity.combined(with: .scale(scale: 0.96, anchor: .center)),
-                                    removal: .opacity.combined(with: .scale(scale: 0.94, anchor: .center))
-                                ))
+                        .padding(.top, contentTopPadding) // Floating header + tab bar space
+                        .padding(.bottom, 55) // Floating footer pill space
+                        .padding(.horizontal, 8)
+                        .animation(.spring(response: 0.25, dampingFraction: 0.75), value: filteredItems.map { $0.id })
+                        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showCategoryBar)
+                    }
+                    .coordinateSpace(name: "pinnedScroll")
+                    .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
+                        handleScrollChange(newOffset: value)
+                    }
+                    .onChange(of: pendingScrollItemId) { _, itemId in
+                        if let itemId = itemId {
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                proxy.scrollTo(itemId, anchor: .center)
+                            }
                         }
                     }
-                    .padding(.top, contentTopPadding) // Floating header + tab bar space
-                    .padding(.bottom, 55) // Floating footer pill space
-                    .padding(.horizontal, 8)
-                    .animation(.spring(response: 0.25, dampingFraction: 0.75), value: filteredItems.map { $0.id })
-                    .animation(.spring(response: 0.3, dampingFraction: 0.8), value: showCategoryBar)
-                }
-                .coordinateSpace(name: "pinnedScroll")
-                .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
-                    handleScrollChange(newOffset: value)
                 }
             }
         }
