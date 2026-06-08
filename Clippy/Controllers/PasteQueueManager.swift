@@ -164,7 +164,7 @@ class PasteQueueManager: ObservableObject {
         let savedKey = UserDefaults.standard.object(forKey: keyDefaultsKey) as? Int
         let savedModifiers = UserDefaults.standard.object(forKey: modifiersDefaultsKey) as? UInt
         
-        guard let savedKey, let savedModifiers, savedKey != 0 else {
+        guard let savedKey, let savedModifiers else {
             return defaultKeyCombo
         }
         

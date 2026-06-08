@@ -273,6 +273,7 @@ struct SettingsView: View {
     @State private var queuePasteShortcutModifiers: UInt = 0
     @State private var currentQueueCopyKeyCombo: KeyCombo?
     @State private var currentQueuePasteKeyCombo: KeyCombo?
+    @State private var queueShortcutWarningTitle = "Shortcut Issue"
     @State private var queueShortcutWarningMessage: String?
     @State private var isQuitInProgress = false
     @State private var isClearHistoryInProgress = false
@@ -348,8 +349,7 @@ struct SettingsView: View {
             UserDefaults.standard.set(shortcutModifiers, forKey: "clipboardShortcutModifiers")
         }
         
-        // Check if shortcutKey is 0 (uninitialized or reset to nil)
-        if shortcutKey == 0 {
+        if UserDefaults.standard.object(forKey: "clipboardShortcutKey") == nil {
             // Reset to default V key (9)
             shortcutKey = 9
             UserDefaults.standard.set(9, forKey: "clipboardShortcutKey")
@@ -359,12 +359,14 @@ struct SettingsView: View {
         currentKeyCombo = KeyCombo(key: shortcutKey, modifiers: NSEvent.ModifierFlags(rawValue: shortcutModifiers))
         currentQueueCopyKeyCombo = loadShortcut(
             key: queueCopyShortcutKey,
+            keyDefaultsKey: PasteQueueManager.copyShortcutKeyDefaultsKey,
             modifiersDefaultsKey: PasteQueueManager.copyShortcutModifiersDefaultsKey,
             defaultKeyCombo: PasteQueueManager.defaultCopyShortcut,
             assignModifiers: { queueCopyShortcutModifiers = $0 }
         )
         currentQueuePasteKeyCombo = loadShortcut(
             key: queuePasteShortcutKey,
+            keyDefaultsKey: PasteQueueManager.pasteShortcutKeyDefaultsKey,
             modifiersDefaultsKey: PasteQueueManager.pasteShortcutModifiersDefaultsKey,
             defaultKeyCombo: PasteQueueManager.defaultPasteShortcut,
             assignModifiers: { queuePasteShortcutModifiers = $0 }
@@ -398,6 +400,16 @@ struct SettingsView: View {
         return nil
     }
     
+    private func showQueueShortcutConflict(_ message: String) {
+        queueShortcutWarningTitle = "Shortcut Conflict"
+        queueShortcutWarningMessage = message
+    }
+    
+    private func showQueueShortcutRegistrationFailure() {
+        queueShortcutWarningTitle = "Shortcut Unavailable"
+        queueShortcutWarningMessage = "macOS rejected that shortcut. Choose a different key combination."
+    }
+    
     private func saveQueueCopyShortcut(_ combo: KeyCombo) {
         queueCopyShortcutKey = combo.key
         queueCopyShortcutModifiers = combo.modifiers.rawValue
@@ -414,6 +426,7 @@ struct SettingsView: View {
     
     private func loadShortcut(
         key: Int,
+        keyDefaultsKey: String,
         modifiersDefaultsKey: String,
         defaultKeyCombo: KeyCombo,
         assignModifiers: (UInt) -> Void
@@ -426,7 +439,7 @@ struct SettingsView: View {
             UserDefaults.standard.set(modifiers, forKey: modifiersDefaultsKey)
         }
         
-        let keyCode = key == 0 ? defaultKeyCombo.key : key
+        let keyCode = UserDefaults.standard.object(forKey: keyDefaultsKey) == nil ? defaultKeyCombo.key : key
         assignModifiers(modifiers)
         
         return KeyCombo(key: keyCode, modifiers: NSEvent.ModifierFlags(rawValue: modifiers))
@@ -527,9 +540,9 @@ struct SettingsView: View {
         .onReceive(NotificationCenter.default.publisher(for: PasteQueueManager.shortcutRegistrationFailedNotification)) { _ in
             currentQueueCopyKeyCombo = PasteQueueManager.shared.copyShortcut
             currentQueuePasteKeyCombo = PasteQueueManager.shared.pasteShortcut
-            queueShortcutWarningMessage = "macOS rejected that shortcut. Choose a different key combination."
+            showQueueShortcutRegistrationFailure()
         }
-        .alert("Shortcut Conflict", isPresented: Binding(
+        .alert(queueShortcutWarningTitle, isPresented: Binding(
             get: { queueShortcutWarningMessage != nil },
             set: { if !$0 { queueShortcutWarningMessage = nil } }
         )) {
@@ -865,7 +878,7 @@ struct SettingsView: View {
                                         if let combo = newValue {
                                             if let message = queueShortcutConflictMessage(for: combo, excluding: .copyToQueue) {
                                                 currentQueueCopyKeyCombo = oldValue
-                                                queueShortcutWarningMessage = message
+                                                showQueueShortcutConflict(message)
                                                 return
                                             }
                                             
@@ -890,7 +903,7 @@ struct SettingsView: View {
                                         if let combo = newValue {
                                             if let message = queueShortcutConflictMessage(for: combo, excluding: .pasteNext) {
                                                 currentQueuePasteKeyCombo = oldValue
-                                                queueShortcutWarningMessage = message
+                                                showQueueShortcutConflict(message)
                                                 return
                                             }
                                             

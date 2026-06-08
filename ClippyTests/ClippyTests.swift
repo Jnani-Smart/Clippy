@@ -10,7 +10,12 @@ import Testing
 @testable import Clippy
 
 struct ClipboardKeyboardNavigationTests {
-    private let itemIds = [UUID(), UUID(), UUID()]
+    private let itemIds = [
+        UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
+        UUID(uuidString: "00000000-0000-0000-0000-000000000002")!,
+        UUID(uuidString: "00000000-0000-0000-0000-000000000003")!
+    ]
+    private let missingItemId = UUID(uuidString: "00000000-0000-0000-0000-000000000099")!
 
     @Test func downArrowWithoutSelectionStartsAtFirstItem() {
         let nextId = ClipboardKeyboardNavigation.nextSelectionId(
@@ -91,7 +96,7 @@ struct ClipboardKeyboardNavigationTests {
 
     @Test func invalidSelectionFallsBackToFirstItem() {
         let validId = ClipboardKeyboardNavigation.validSelectionId(
-            selectedId: UUID(),
+            selectedId: missingItemId,
             itemIds: itemIds,
             isQueueTabSelected: false
         )
