@@ -3,6 +3,9 @@ import Carbon
 
 struct ShortcutRecorder: View {
     @Binding var keyCombo: KeyCombo?
+    var defaultKeyCombo: KeyCombo = KeyCombo(key: 9, modifiers: [.command, .shift])
+    var resetHelpText: String = "Reset to default (⌘⇧V)"
+    var updateNotificationName: Notification.Name? = Notification.Name("UpdateShortcuts")
     @State private var isRecording = false
     @State private var tempKeyCombo: KeyCombo?
     @State private var eventMonitor: Any?
@@ -63,9 +66,7 @@ struct ShortcutRecorder: View {
             
             if keyCombo != nil {
                 Button(action: {
-                    // Instead of nil, set to default Cmd+Shift+V
-                    let defaultModifiers = NSEvent.ModifierFlags([.command, .shift])
-                    keyCombo = KeyCombo(key: 9, modifiers: defaultModifiers) // 9 is keycode for "V"
+                    keyCombo = defaultKeyCombo
                 }) {
                     // Use SF Symbol matching macOS reset/default symbol
                     Image(systemName: "arrow.counterclockwise.circle")
@@ -74,7 +75,7 @@ struct ShortcutRecorder: View {
                         .frame(width: 24, height: 24)
                 }
                 .buttonStyle(PlainButtonStyle())
-                .help("Reset to default (⌘⇧V)")
+                .help(resetHelpText)
             }
         }
     }
@@ -109,13 +110,14 @@ struct ShortcutRecorder: View {
         self.keyCombo = newCombo
         self.isRecording = false
         
-        // Ensure the notification is posted
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            NotificationCenter.default.post(
-                name: Notification.Name("UpdateShortcuts"),
-                object: nil,
-                userInfo: ["keyCombo": newCombo]
-            )
+        if let updateNotificationName {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                NotificationCenter.default.post(
+                    name: updateNotificationName,
+                    object: nil,
+                    userInfo: ["keyCombo": newCombo]
+                )
+            }
         }
     }
 }

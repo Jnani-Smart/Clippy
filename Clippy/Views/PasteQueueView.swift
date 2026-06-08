@@ -38,7 +38,7 @@ struct PasteQueueView: View {
             Text("Queue is empty")
                 .font(.headline)
             
-            Text("Press ⌃C to activate, then ⌘C to add items")
+            Text("Press \(pasteQueueManager.copyShortcut.displayString) to activate, then ⌘C to add items")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)

@@ -10,6 +10,13 @@ import ApplicationServices
 /// Items added to the queue will be pasted in order - each paste operation advances to the next item.
 class PasteQueueManager: ObservableObject {
     static let shared = PasteQueueManager()
+    static let copyShortcutKeyDefaultsKey = "pasteQueueCopyShortcutKey"
+    static let copyShortcutModifiersDefaultsKey = "pasteQueueCopyShortcutModifiers"
+    static let pasteShortcutKeyDefaultsKey = "pasteQueuePasteShortcutKey"
+    static let pasteShortcutModifiersDefaultsKey = "pasteQueuePasteShortcutModifiers"
+    static let updateShortcutsNotification = Notification.Name("UpdatePasteQueueShortcuts")
+    static let defaultCopyShortcut = KeyCombo(key: .c, modifiers: [.control, .option])
+    static let defaultPasteShortcut = KeyCombo(key: .v, modifiers: [.control, .option])
     
     /// The items currently in the paste queue, in order (first item will be pasted first)
     @Published var queueItems: [ClipboardItem] = []
@@ -25,6 +32,12 @@ class PasteQueueManager: ObservableObject {
     
     /// Track if we just queued an item (for animation feedback)
     @Published var justQueued: Bool = false
+    
+    /// Current shortcut used to activate queue capture mode
+    @Published private(set) var copyShortcut: KeyCombo = PasteQueueManager.defaultCopyShortcut
+    
+    /// Current shortcut used to paste the next queued item
+    @Published private(set) var pasteShortcut: KeyCombo = PasteQueueManager.defaultPasteShortcut
     
     /// Maximum items allowed in the queue
     let maxQueueSize: Int = 50
@@ -43,7 +56,9 @@ class PasteQueueManager: ObservableObject {
     // MARK: - Initialization
     
     private init() {
+        loadShortcutPreferences()
         setupGlobalShortcuts()
+        setupShortcutPreferenceMonitoring()
         setupClipboardMonitoring()
     }
     
@@ -77,24 +92,67 @@ class PasteQueueManager: ObservableObject {
     }
     
     private func setupGlobalShortcuts() {
-        // Ctrl+C (Key 8, modifier control) - Toggle/Activate Queue Mode
-        // Note: Key 'C' is 0x08
-        let copyKeyCombo = KeyCombo(key: 8, modifiers: [.control])
-        queueCopyShortcutManager = ShortcutManager(keyCombo: copyKeyCombo) { [weak self] in
+        queueCopyShortcutManager = ShortcutManager(keyCombo: copyShortcut) { [weak self] in
             self?.handleCopyToQueue()
         }
         
-        // Ctrl+V (Key 9, modifier control) - Paste from Queue
-        // Note: Key 'V' is 0x09
-        let pasteKeyCombo = KeyCombo(key: 9, modifiers: [.control])
-        queuePasteShortcutManager = ShortcutManager(keyCombo: pasteKeyCombo) { [weak self] in
+        queuePasteShortcutManager = ShortcutManager(keyCombo: pasteShortcut) { [weak self] in
             self?.handlePasteFromQueue()
         }
     }
     
+    private func setupShortcutPreferenceMonitoring() {
+        NotificationCenter.default.addObserver(
+            forName: Self.updateShortcutsNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.reloadGlobalShortcuts()
+        }
+    }
+    
+    private func reloadGlobalShortcuts() {
+        loadShortcutPreferences()
+        
+        queueCopyShortcutManager?.unregisterShortcut()
+        queueCopyShortcutManager = nil
+        queuePasteShortcutManager?.unregisterShortcut()
+        queuePasteShortcutManager = nil
+        
+        setupGlobalShortcuts()
+    }
+    
+    private func loadShortcutPreferences() {
+        copyShortcut = Self.keyCombo(
+            keyDefaultsKey: Self.copyShortcutKeyDefaultsKey,
+            modifiersDefaultsKey: Self.copyShortcutModifiersDefaultsKey,
+            defaultKeyCombo: Self.defaultCopyShortcut
+        )
+        pasteShortcut = Self.keyCombo(
+            keyDefaultsKey: Self.pasteShortcutKeyDefaultsKey,
+            modifiersDefaultsKey: Self.pasteShortcutModifiersDefaultsKey,
+            defaultKeyCombo: Self.defaultPasteShortcut
+        )
+    }
+    
+    private static func keyCombo(
+        keyDefaultsKey: String,
+        modifiersDefaultsKey: String,
+        defaultKeyCombo: KeyCombo
+    ) -> KeyCombo {
+        let savedKey = UserDefaults.standard.object(forKey: keyDefaultsKey) as? Int
+        let savedModifiers = UserDefaults.standard.object(forKey: modifiersDefaultsKey) as? UInt
+        
+        guard let savedKey, let savedModifiers, savedKey != 0 else {
+            return defaultKeyCombo
+        }
+        
+        return KeyCombo(key: savedKey, modifiers: NSEvent.ModifierFlags(rawValue: savedModifiers))
+    }
+    
     private func handleCopyToQueue() {
         #if DEBUG
-        print("⌨️ Ctrl+C pressed - Activating Queue Mode")
+        print("⌨️ \(copyShortcut.displayString) pressed - Activating Queue Mode")
         #endif
         
         // 1. Activate queue mode
@@ -109,7 +167,7 @@ class PasteQueueManager: ObservableObject {
     
     private func handlePasteFromQueue() {
         #if DEBUG
-        print("⌨️ Ctrl+V pressed - Paste Triggered")
+        print("⌨️ \(pasteShortcut.displayString) pressed - Paste Triggered")
         #endif
         
         if queueItems.isEmpty {
@@ -339,6 +397,12 @@ class PasteQueueManager: ObservableObject {
     }
 
     // MARK: - Toggle Queue Mode
+    func deactivateQueueMode() {
+        DispatchQueue.main.async { [weak self] in
+            self?.isQueueModeActive = false
+        }
+    }
+    
     func toggleQueueMode() {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
@@ -367,4 +431,3 @@ class PasteQueueManager: ObservableObject {
         return queueItems.count
     }
 }
-

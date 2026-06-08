@@ -68,6 +68,8 @@ struct ClipboardView: View {
     @State private var searchText = ""
     @State private var hoveredItemId: UUID? = nil
     @State private var keyboardSelectedItemId: UUID? = nil
+    @State private var isKeyboardSelectionControllingHover = false
+    @State private var lastMouseHoverLocation: CGPoint? = nil
     @State private var pendingScrollItemId: UUID? = nil
     @State private var isClearing = false
     @State private var trashFilled = false
@@ -91,6 +93,8 @@ struct ClipboardView: View {
     @State private var isClearButtonHovered = false
     @State private var trashAnimationPhase = 0
     @State private var isSettingsHovered = false
+    @State private var isPasteActionInProgress = false
+    @State private var pendingPasteWorkItem: DispatchWorkItem? = nil
     
     // Scroll-aware expansion tracking
     @State private var isScrolling = false
@@ -160,6 +164,18 @@ struct ClipboardView: View {
             searchText: searchText,
             fromItems: sourceItems
         )
+    }
+
+    private var shouldAutoPasteAfterCopying: Bool {
+        guard UserDefaults.standard.object(forKey: "autoPaste") != nil else {
+            return true
+        }
+
+        return UserDefaults.standard.bool(forKey: "autoPaste")
+    }
+
+    private var activeHoverItemId: UUID? {
+        isKeyboardSelectionControllingHover ? keyboardSelectedItemId : (hoveredItemId ?? keyboardSelectedItemId)
     }
     
     // Use a more efficient body implementation
@@ -288,7 +304,7 @@ struct ClipboardView: View {
         }
         .onDisappear {
             if let monitor = keyEventMonitor {
-                NSEvent.removeMonitor(monitor)
+                NotificationCenter.default.removeObserver(monitor)
                 keyEventMonitor = nil
             }
         }
@@ -393,7 +409,7 @@ struct ClipboardView: View {
                 
                 // Floating Control+V pill for Queue tab
                 if segmentedSelection == 2 && pasteQueueManager.itemCount > 0 {
-                    Text("⌃V to paste next")
+                    Text("\(pasteQueueManager.pasteShortcut.displayString) to paste next")
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundColor(.orange)
                         .padding(.horizontal, 12)
@@ -916,7 +932,7 @@ struct ClipboardView: View {
             
             ClipboardItemRow(
                 item: item,
-                isHovered: hoveredItemId == item.id || keyboardSelectedItemId == item.id,
+                isHovered: activeHoverItemId == item.id,
                 showFullContent: expandableItemId == item.id,
                 clipboardManager: clipboardManager
             )
@@ -950,6 +966,7 @@ struct ClipboardView: View {
                 toggleSelection(for: item)
             } else {
                 // Normal tap behavior
+                isKeyboardSelectionControllingHover = false
                 keyboardSelectedItemId = item.id
                 handleItemTap(item)
             }
@@ -957,6 +974,11 @@ struct ClipboardView: View {
         .onHover { isHovered in
             if !isSelectMode {
                 handleItemHover(isHovered: isHovered, item: item)
+            }
+        }
+        .onContinuousHover { phase in
+            if case .active = phase, !isSelectMode {
+                handleItemMouseMoved(item)
             }
         }
         .padding(.vertical, isSelectMode ? 2 : 1.5)
@@ -1112,13 +1134,25 @@ struct ClipboardView: View {
     }
     
     private func handleItemTap(_ item: ClipboardItem) {
+        guard !isPasteActionInProgress else { return }
+        isPasteActionInProgress = true
+        
         clipboardManager.copyItemToPasteboard(item)
-        
-        // Auto-paste after copying
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            simulatePaste()
+
+        if shouldAutoPasteAfterCopying {
+            pendingPasteWorkItem?.cancel()
+            let pasteWorkItem = DispatchWorkItem {
+                simulatePaste()
+            }
+            pendingPasteWorkItem = pasteWorkItem
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: pasteWorkItem)
         }
-        
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
+            isPasteActionInProgress = false
+            pendingPasteWorkItem = nil
+        }
+
         // Close the current window efficiently
         closeWindow()
     }
@@ -1133,11 +1167,13 @@ struct ClipboardView: View {
         }
         // Up arrow: keyCode 126
         if keyCode == 126 {
-            return moveKeyboardSelection(by: -1)
+            moveKeyboardSelection(by: -1)
+            return true
         }
         // Down arrow: keyCode 125
         if keyCode == 125 {
-            return moveKeyboardSelection(by: 1)
+            moveKeyboardSelection(by: 1)
+            return true
         }
         // Return/Enter: keyCode 36, keypad enter: keyCode 76
         if keyCode == 36 || keyCode == 76 {
@@ -1151,11 +1187,19 @@ struct ClipboardView: View {
             }
         }
         // Escape: keyCode 53
-        if keyCode == 53, isSelectMode {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                isSelectMode = false
-                selectedItems.removeAll()
+        if keyCode == 53 {
+            if isSelectMode {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    isSelectMode = false
+                    selectedItems.removeAll()
+                }
             }
+            
+            if pasteQueueManager.isQueueModeActive {
+                pasteQueueManager.deactivateQueueMode()
+            }
+            
+            closeWindow()
             return true
         }
 
@@ -1164,7 +1208,7 @@ struct ClipboardView: View {
 
     private func selectedItemForKeyboardAction() -> ClipboardItem? {
         guard let itemId = ClipboardKeyboardNavigation.actionItemId(
-            hoveredId: hoveredItemId,
+            hoveredId: isKeyboardSelectionControllingHover ? nil : hoveredItemId,
             selectedId: keyboardSelectedItemId,
             itemIds: filteredItems.map { $0.id },
             isQuickLookPresented: showQuickLook,
@@ -1190,7 +1234,7 @@ struct ClipboardView: View {
     private func moveKeyboardSelection(by offset: Int) -> Bool {
         guard let nextId = ClipboardKeyboardNavigation.nextSelectionId(
             selectedId: keyboardSelectedItemId,
-            hoveredId: hoveredItemId,
+            hoveredId: isKeyboardSelectionControllingHover ? nil : hoveredItemId,
             itemIds: filteredItems.map { $0.id },
             offset: offset,
             isQuickLookPresented: showQuickLook,
@@ -1201,6 +1245,9 @@ struct ClipboardView: View {
 
         withAnimation(.easeInOut(duration: 0.12)) {
             keyboardSelectedItemId = nextId
+            hoveredItemId = nil
+            isKeyboardSelectionControllingHover = true
+            lastMouseHoverLocation = nil
             expandableItemId = nil
         }
         pendingScrollItemId = nextId
@@ -1218,6 +1265,10 @@ struct ClipboardView: View {
     }
     
     private func handleItemHover(isHovered: Bool, item: ClipboardItem) {
+        if isHovered && isKeyboardSelectionControllingHover {
+            return
+        }
+
         // Always track hovered item for visual feedback
         DispatchQueue.main.async {
             withAnimation(.easeInOut(duration: 0.15)) {
@@ -1245,6 +1296,28 @@ struct ClipboardView: View {
                     expandableItemId = nil
                 }
             }
+        }
+    }
+
+    private func handleItemMouseMoved(_ item: ClipboardItem) {
+        guard isKeyboardSelectionControllingHover else { return }
+        let mouseLocation = NSEvent.mouseLocation
+        
+        guard let lastLocation = lastMouseHoverLocation else {
+            lastMouseHoverLocation = mouseLocation
+            return
+        }
+        
+        let deltaX = mouseLocation.x - lastLocation.x
+        let deltaY = mouseLocation.y - lastLocation.y
+        guard hypot(deltaX, deltaY) > 1.5 else { return }
+
+        withAnimation(.easeInOut(duration: 0.15)) {
+            isKeyboardSelectionControllingHover = false
+            lastMouseHoverLocation = mouseLocation
+            hoveredItemId = item.id
+            keyboardSelectedItemId = item.id
+            expandableItemId = nil
         }
     }
     
