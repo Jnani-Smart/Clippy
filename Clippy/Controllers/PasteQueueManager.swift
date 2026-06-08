@@ -15,6 +15,7 @@ class PasteQueueManager: ObservableObject {
     static let pasteShortcutKeyDefaultsKey = "pasteQueuePasteShortcutKey"
     static let pasteShortcutModifiersDefaultsKey = "pasteQueuePasteShortcutModifiers"
     static let updateShortcutsNotification = Notification.Name("UpdatePasteQueueShortcuts")
+    static let shortcutRegistrationFailedNotification = Notification.Name("PasteQueueShortcutRegistrationFailed")
     static let defaultCopyShortcut = KeyCombo(key: .c, modifiers: [.control, .option])
     static let defaultPasteShortcut = KeyCombo(key: .v, modifiers: [.control, .option])
     
@@ -57,7 +58,7 @@ class PasteQueueManager: ObservableObject {
     
     private init() {
         loadShortcutPreferences()
-        setupGlobalShortcuts()
+        _ = setupGlobalShortcuts()
         setupShortcutPreferenceMonitoring()
         setupClipboardMonitoring()
     }
@@ -91,7 +92,8 @@ class PasteQueueManager: ObservableObject {
         }
     }
     
-    private func setupGlobalShortcuts() {
+    @discardableResult
+    private func setupGlobalShortcuts() -> Bool {
         queueCopyShortcutManager = ShortcutManager(keyCombo: copyShortcut) { [weak self] in
             self?.handleCopyToQueue()
         }
@@ -99,6 +101,8 @@ class PasteQueueManager: ObservableObject {
         queuePasteShortcutManager = ShortcutManager(keyCombo: pasteShortcut) { [weak self] in
             self?.handlePasteFromQueue()
         }
+        
+        return queueCopyShortcutManager?.isRegistered == true && queuePasteShortcutManager?.isRegistered == true
     }
     
     private func setupShortcutPreferenceMonitoring() {
@@ -112,6 +116,8 @@ class PasteQueueManager: ObservableObject {
     }
     
     private func reloadGlobalShortcuts() {
+        let previousCopyShortcut = copyShortcut
+        let previousPasteShortcut = pasteShortcut
         loadShortcutPreferences()
         
         queueCopyShortcutManager?.unregisterShortcut()
@@ -119,7 +125,22 @@ class PasteQueueManager: ObservableObject {
         queuePasteShortcutManager?.unregisterShortcut()
         queuePasteShortcutManager = nil
         
-        setupGlobalShortcuts()
+        if !setupGlobalShortcuts() {
+            queueCopyShortcutManager?.unregisterShortcut()
+            queueCopyShortcutManager = nil
+            queuePasteShortcutManager?.unregisterShortcut()
+            queuePasteShortcutManager = nil
+            
+            copyShortcut = previousCopyShortcut
+            pasteShortcut = previousPasteShortcut
+            saveShortcutPreferences(copyShortcut: previousCopyShortcut, pasteShortcut: previousPasteShortcut)
+            _ = setupGlobalShortcuts()
+            
+            NotificationCenter.default.post(
+                name: Self.shortcutRegistrationFailedNotification,
+                object: nil
+            )
+        }
     }
     
     private func loadShortcutPreferences() {
@@ -148,6 +169,13 @@ class PasteQueueManager: ObservableObject {
         }
         
         return KeyCombo(key: savedKey, modifiers: NSEvent.ModifierFlags(rawValue: savedModifiers))
+    }
+    
+    private func saveShortcutPreferences(copyShortcut: KeyCombo, pasteShortcut: KeyCombo) {
+        UserDefaults.standard.set(copyShortcut.key, forKey: Self.copyShortcutKeyDefaultsKey)
+        UserDefaults.standard.set(copyShortcut.modifiers.rawValue, forKey: Self.copyShortcutModifiersDefaultsKey)
+        UserDefaults.standard.set(pasteShortcut.key, forKey: Self.pasteShortcutKeyDefaultsKey)
+        UserDefaults.standard.set(pasteShortcut.modifiers.rawValue, forKey: Self.pasteShortcutModifiersDefaultsKey)
     }
     
     private func handleCopyToQueue() {

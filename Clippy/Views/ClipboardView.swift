@@ -27,6 +27,25 @@ final class ClipboardHistoryKeyEvent {
     }
 }
 
+@MainActor
+private final class ClipboardPasteActionGate {
+    static let shared = ClipboardPasteActionGate()
+    
+    private var isPasteActionInProgress = false
+    
+    func begin(resetAfter delay: TimeInterval = 0.7) -> Bool {
+        guard !isPasteActionInProgress else {
+            return false
+        }
+        
+        isPasteActionInProgress = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            self?.isPasteActionInProgress = false
+        }
+        return true
+    }
+}
+
 // Enhanced visual effect view with modern styling
 struct VisualEffectView: NSViewRepresentable {
     var material: NSVisualEffectView.Material
@@ -93,7 +112,6 @@ struct ClipboardView: View {
     @State private var isClearButtonHovered = false
     @State private var trashAnimationPhase = 0
     @State private var isSettingsHovered = false
-    @State private var isPasteActionInProgress = false
     @State private var pendingPasteWorkItem: DispatchWorkItem? = nil
     
     // Scroll-aware expansion tracking
@@ -291,6 +309,10 @@ struct ClipboardView: View {
         }
         .onAppear {
             ensureKeyboardSelectionIsValid()
+            if let monitor = keyEventMonitor {
+                NotificationCenter.default.removeObserver(monitor)
+                keyEventMonitor = nil
+            }
             keyEventMonitor = NotificationCenter.default.addObserver(
                 forName: .clipboardHistoryKeyDown,
                 object: nil,
@@ -1134,8 +1156,7 @@ struct ClipboardView: View {
     }
     
     private func handleItemTap(_ item: ClipboardItem) {
-        guard !isPasteActionInProgress else { return }
-        isPasteActionInProgress = true
+        guard ClipboardPasteActionGate.shared.begin() else { return }
         
         clipboardManager.copyItemToPasteboard(item)
 
@@ -1149,7 +1170,6 @@ struct ClipboardView: View {
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
-            isPasteActionInProgress = false
             pendingPasteWorkItem = nil
         }
 
@@ -1167,13 +1187,11 @@ struct ClipboardView: View {
         }
         // Up arrow: keyCode 126
         if keyCode == 126 {
-            moveKeyboardSelection(by: -1)
-            return true
+            return moveKeyboardSelection(by: -1)
         }
         // Down arrow: keyCode 125
         if keyCode == 125 {
-            moveKeyboardSelection(by: 1)
-            return true
+            return moveKeyboardSelection(by: 1)
         }
         // Return/Enter: keyCode 36, keypad enter: keyCode 76
         if keyCode == 36 || keyCode == 76 {
@@ -1193,6 +1211,7 @@ struct ClipboardView: View {
                     isSelectMode = false
                     selectedItems.removeAll()
                 }
+                return true
             }
             
             if pasteQueueManager.isQueueModeActive {

@@ -107,6 +107,11 @@ class ShortcutManager {
     private let keyCombo: KeyCombo
     private let action: () -> Void
     private let hotKeyID: UInt32
+    private(set) var registrationError: OSStatus?
+    
+    var isRegistered: Bool {
+        hotKeyRef != nil && registrationError == nil
+    }
     
     // Static counter to generate unique IDs for each shortcut
     private static var nextHotKeyID: UInt32 = 1
@@ -119,8 +124,10 @@ class ShortcutManager {
         self.hotKeyID = ShortcutManager.nextHotKeyID
         ShortcutManager.nextHotKeyID += 1
         
-        ShortcutManager.registeredManagers[self.hotKeyID] = self
         registerShortcut()
+        if isRegistered {
+            ShortcutManager.registeredManagers[self.hotKeyID] = self
+        }
     }
     
     deinit {
@@ -174,7 +181,10 @@ class ShortcutManager {
         )
         
         if registerResult != noErr {
+            registrationError = registerResult
             print("Failed to register hotkey: \(registerResult)")
+        } else {
+            registrationError = nil
         }
     }
     

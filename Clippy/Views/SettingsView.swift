@@ -11,6 +11,11 @@ import Combine
 // First, define a global constant outside the view struct
 private let defaultModifierValue: UInt = UInt(NSEvent.ModifierFlags.command.rawValue | NSEvent.ModifierFlags.shift.rawValue)
 
+private enum PasteQueueShortcutRole {
+    case copyToQueue
+    case pasteNext
+}
+
 // Renamed version of the visual effect view for settings
 struct SettingsVisualEffectView: NSViewRepresentable {
     var material: NSVisualEffectView.Material
@@ -268,6 +273,7 @@ struct SettingsView: View {
     @State private var queuePasteShortcutModifiers: UInt = 0
     @State private var currentQueueCopyKeyCombo: KeyCombo?
     @State private var currentQueuePasteKeyCombo: KeyCombo?
+    @State private var queueShortcutWarningMessage: String?
     @State private var isQuitInProgress = false
     @State private var isClearHistoryInProgress = false
     @State private var isExporting = false
@@ -374,6 +380,36 @@ struct SettingsView: View {
                 )
             }
         }
+    }
+    
+    private func queueShortcutConflictMessage(for combo: KeyCombo, excluding role: PasteQueueShortcutRole) -> String? {
+        if role != .copyToQueue, combo == currentQueueCopyKeyCombo {
+            return "Copy to Queue and Paste Next cannot use the same shortcut."
+        }
+        
+        if role != .pasteNext, combo == currentQueuePasteKeyCombo {
+            return "Copy to Queue and Paste Next cannot use the same shortcut."
+        }
+        
+        if combo == currentKeyCombo {
+            return "Paste Queue shortcuts cannot use the same shortcut as Show clipboard history."
+        }
+        
+        return nil
+    }
+    
+    private func saveQueueCopyShortcut(_ combo: KeyCombo) {
+        queueCopyShortcutKey = combo.key
+        queueCopyShortcutModifiers = combo.modifiers.rawValue
+        UserDefaults.standard.set(queueCopyShortcutModifiers, forKey: PasteQueueManager.copyShortcutModifiersDefaultsKey)
+        NotificationCenter.default.post(name: PasteQueueManager.updateShortcutsNotification, object: nil)
+    }
+    
+    private func saveQueuePasteShortcut(_ combo: KeyCombo) {
+        queuePasteShortcutKey = combo.key
+        queuePasteShortcutModifiers = combo.modifiers.rawValue
+        UserDefaults.standard.set(queuePasteShortcutModifiers, forKey: PasteQueueManager.pasteShortcutModifiersDefaultsKey)
+        NotificationCenter.default.post(name: PasteQueueManager.updateShortcutsNotification, object: nil)
     }
     
     private func loadShortcut(
@@ -487,6 +523,19 @@ struct SettingsView: View {
                 NSEvent.removeMonitor(monitor)
                 keyEventMonitor = nil
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: PasteQueueManager.shortcutRegistrationFailedNotification)) { _ in
+            currentQueueCopyKeyCombo = PasteQueueManager.shared.copyShortcut
+            currentQueuePasteKeyCombo = PasteQueueManager.shared.pasteShortcut
+            queueShortcutWarningMessage = "macOS rejected that shortcut. Choose a different key combination."
+        }
+        .alert("Shortcut Conflict", isPresented: Binding(
+            get: { queueShortcutWarningMessage != nil },
+            set: { if !$0 { queueShortcutWarningMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(queueShortcutWarningMessage ?? "")
         }
     }
     
@@ -812,12 +861,15 @@ struct SettingsView: View {
                                         resetHelpText: "Reset to default (\(PasteQueueManager.defaultCopyShortcut.displayString))",
                                         updateNotificationName: nil
                                     )
-                                    .onChange(of: currentQueueCopyKeyCombo) { _, newValue in
+                                    .onChange(of: currentQueueCopyKeyCombo) { oldValue, newValue in
                                         if let combo = newValue {
-                                            queueCopyShortcutKey = combo.key
-                                            queueCopyShortcutModifiers = combo.modifiers.rawValue
-                                            UserDefaults.standard.set(queueCopyShortcutModifiers, forKey: PasteQueueManager.copyShortcutModifiersDefaultsKey)
-                                            NotificationCenter.default.post(name: PasteQueueManager.updateShortcutsNotification, object: nil)
+                                            if let message = queueShortcutConflictMessage(for: combo, excluding: .copyToQueue) {
+                                                currentQueueCopyKeyCombo = oldValue
+                                                queueShortcutWarningMessage = message
+                                                return
+                                            }
+                                            
+                                            saveQueueCopyShortcut(combo)
                                         }
                                     }
                                 }
@@ -834,12 +886,15 @@ struct SettingsView: View {
                                         resetHelpText: "Reset to default (\(PasteQueueManager.defaultPasteShortcut.displayString))",
                                         updateNotificationName: nil
                                     )
-                                    .onChange(of: currentQueuePasteKeyCombo) { _, newValue in
+                                    .onChange(of: currentQueuePasteKeyCombo) { oldValue, newValue in
                                         if let combo = newValue {
-                                            queuePasteShortcutKey = combo.key
-                                            queuePasteShortcutModifiers = combo.modifiers.rawValue
-                                            UserDefaults.standard.set(queuePasteShortcutModifiers, forKey: PasteQueueManager.pasteShortcutModifiersDefaultsKey)
-                                            NotificationCenter.default.post(name: PasteQueueManager.updateShortcutsNotification, object: nil)
+                                            if let message = queueShortcutConflictMessage(for: combo, excluding: .pasteNext) {
+                                                currentQueuePasteKeyCombo = oldValue
+                                                queueShortcutWarningMessage = message
+                                                return
+                                            }
+                                            
+                                            saveQueuePasteShortcut(combo)
                                         }
                                     }
                                 }

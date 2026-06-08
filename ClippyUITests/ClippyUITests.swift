@@ -7,6 +7,12 @@
 
 import XCTest
 
+func makeUITestApplication() -> XCUIApplication {
+    let app = XCUIApplication()
+    app.launchEnvironment["CLIPPY_UI_TESTING"] = "1"
+    return app
+}
+
 final class ClippyUITests: XCTestCase {
 
     override func setUpWithError() throws {
@@ -23,21 +29,12 @@ final class ClippyUITests: XCTestCase {
     }
 
     @MainActor
-    func testExample() throws {
-        // UI tests must launch the application that they test.
-        let app = XCUIApplication()
+    func testAppLaunchesWithoutAccessibilityPrompt() throws {
+        let app = makeUITestApplication()
         app.launch()
 
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
+        XCTAssertNotEqual(app.state, .notRunning)
+        XCTAssertFalse(app.alerts["Accessibility Permissions Required"].waitForExistence(timeout: 1))
     }
 
-    @MainActor
-    func testLaunchPerformance() throws {
-        if #available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 7.0, *) {
-            // This measures how long it takes to launch your application.
-            measure(metrics: [XCTApplicationLaunchMetric()]) {
-                XCUIApplication().launch()
-            }
-        }
-    }
 }

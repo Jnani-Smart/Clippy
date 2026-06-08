@@ -105,22 +105,24 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
             }
         }
         
-        // Request accessibility permissions
-        let options: NSDictionary = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
-        let accessEnabled = AXIsProcessTrustedWithOptions(options)
-        
-        if !accessEnabled {
-            // Show alert to instruct user to enable permissions
-            NSApp.activate(ignoringOtherApps: true)
-            let alert = NSAlert()
-            alert.messageText = "Accessibility Permissions Required"
-            alert.informativeText = "Please grant Accessibility access in System Settings → Privacy & Security → Accessibility to enable keyboard shortcuts. If Clippy does not appear in the list, add Clippy.app manually with the + button."
-            alert.alertStyle = .warning
-            alert.addButton(withTitle: "Open System Settings")
-            alert.addButton(withTitle: "Later")
+        if ProcessInfo.processInfo.environment["CLIPPY_UI_TESTING"] != "1" {
+            // Request accessibility permissions
+            let options: NSDictionary = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
+            let accessEnabled = AXIsProcessTrustedWithOptions(options)
             
-            if alert.runModal() == .alertFirstButtonReturn {
-                NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+            if !accessEnabled {
+                // Show alert to instruct user to enable permissions
+                NSApp.activate(ignoringOtherApps: true)
+                let alert = NSAlert()
+                alert.messageText = "Accessibility Permissions Required"
+                alert.informativeText = "Please grant Accessibility access in System Settings → Privacy & Security → Accessibility to enable keyboard shortcuts. If Clippy does not appear in the list, add Clippy.app manually with the + button."
+                alert.alertStyle = .warning
+                alert.addButton(withTitle: "Open System Settings")
+                alert.addButton(withTitle: "Later")
+                
+                if alert.runModal() == .alertFirstButtonReturn {
+                    NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+                }
             }
         }
         
