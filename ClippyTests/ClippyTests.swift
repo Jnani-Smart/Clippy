@@ -82,6 +82,19 @@ struct ClipboardKeyboardNavigationTests {
         #expect(nextId == itemIds[2])
     }
 
+    @Test func hoveredItemWinsWhenKeyboardSelectionIsStale() {
+        let nextId = ClipboardKeyboardNavigation.nextSelectionId(
+            selectedId: itemIds[0],
+            hoveredId: itemIds[1],
+            itemIds: itemIds,
+            offset: 1,
+            isQuickLookPresented: false,
+            isQueueTabSelected: false
+        )
+
+        #expect(nextId == itemIds[2])
+    }
+
     @Test func actionItemPrefersHoveredItemOverKeyboardSelection() {
         let actionId = ClipboardKeyboardNavigation.actionItemId(
             hoveredId: itemIds[1],

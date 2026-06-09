@@ -16,11 +16,15 @@ final class ClippyUITestsLaunchTests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
     }
+    
+    override func tearDownWithError() throws {
+        terminateRunningClippyInstances()
+    }
 
     @MainActor
     func testLaunch() throws {
         let app = makeUITestApplication()
-        app.launch()
+        launchFresh(app)
         XCTAssertFalse(app.alerts["Accessibility Permissions Required"].waitForExistence(timeout: 1))
 
         // Insert steps here to perform after app launch but before taking a screenshot,

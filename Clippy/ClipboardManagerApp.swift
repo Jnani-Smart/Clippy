@@ -58,6 +58,7 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
     private var floatingWindow: NSPanel? // Track the floating window
     private var settingsWindow: NSPanel? // Track the settings window
     private var isShowingFloatingWindow = false
+    private var closingWindowIDs = Set<ObjectIdentifier>()
     
     // Keys for saving window positions
     private let floatingWindowPositionKey = "FloatingWindowPosition"
@@ -72,6 +73,8 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
     }
     
     func applicationDidFinishLaunching(_ notification: Notification) {
+        ProcessInfo.processInfo.disableAutomaticTermination("Clippy runs as a menu bar app")
+        
         // Set app icon programmatically from asset catalog
         if let appIcon = NSImage(named: "AppIcon") {
             NSApp.applicationIconImage = appIcon
@@ -93,7 +96,7 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             // Double-check dock icon setting
             let shouldHideDockIcon = UserDefaults.standard.bool(forKey: "hideDockIcon")
-            if shouldHideDockIcon && NSApp.activationPolicy() != .prohibited {
+            if shouldHideDockIcon && NSApp.activationPolicy() != .accessory {
                 self.updateDockIconVisibility(hidden: true)
             }
             
@@ -102,27 +105,6 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
             if shouldHideMenuBarIcon {
                 self.statusItem?.button?.isHidden = true
                 print("Both dock and menu bar icons are hidden - app is accessible via keyboard shortcut only")
-            }
-        }
-        
-        if ProcessInfo.processInfo.environment["CLIPPY_UI_TESTING"] != "1" {
-            // Request accessibility permissions
-            let options: NSDictionary = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
-            let accessEnabled = AXIsProcessTrustedWithOptions(options)
-            
-            if !accessEnabled {
-                // Show alert to instruct user to enable permissions
-                NSApp.activate(ignoringOtherApps: true)
-                let alert = NSAlert()
-                alert.messageText = "Accessibility Permissions Required"
-                alert.informativeText = "Please grant Accessibility access in System Settings → Privacy & Security → Accessibility to enable keyboard shortcuts. If Clippy does not appear in the list, add Clippy.app manually with the + button."
-                alert.alertStyle = .warning
-                alert.addButton(withTitle: "Open System Settings")
-                alert.addButton(withTitle: "Later")
-                
-                if alert.runModal() == .alertFirstButtonReturn {
-                    NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
-                }
             }
         }
         
@@ -228,6 +210,8 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         // Initialize AutoUpdater service
         initializeAutoUpdater()
         
+        scheduleAccessibilityPermissionCheck()
+        
         // Check first launch BEFORE showing anything
         let isFirstLaunch = FirstLaunchManager.shared.isFirstLaunch
         
@@ -251,6 +235,38 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         }
     }
     
+    private func scheduleAccessibilityPermissionCheck() {
+        guard ProcessInfo.processInfo.environment["CLIPPY_UI_TESTING"] != "1" else {
+            return
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+            self?.showAccessibilityPermissionAlertIfNeeded()
+        }
+    }
+    
+    private func showAccessibilityPermissionAlertIfNeeded() {
+        let forceAccessibilityAlert = ProcessInfo.processInfo.environment["CLIPPY_FORCE_ACCESSIBILITY_ALERT"] == "1"
+        guard forceAccessibilityAlert || !AXIsProcessTrusted() else {
+            return
+        }
+        
+        prepareToShowUserFacingWindow()
+        NSApp.activate(ignoringOtherApps: true)
+        
+        let alert = NSAlert()
+        alert.messageText = "Accessibility Permissions Required"
+        alert.informativeText = "Please grant Accessibility access in System Settings → Privacy & Security → Accessibility to enable keyboard shortcuts. If Clippy does not appear in the list, add Clippy.app manually with the + button."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Open System Settings")
+        alert.addButton(withTitle: "Later")
+        
+        if alert.runModal() == .alertFirstButtonReturn,
+           let accessibilitySettingsURL = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(accessibilitySettingsURL)
+        }
+    }
+    
     private func setupStatusBarItem() {
         // Remove existing status item if it exists
         if statusItem != nil {
@@ -266,52 +282,29 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
             button.image = NSImage(systemSymbolName: "clipboard", accessibilityDescription: "Clipboard")
             button.image?.size = NSSize(width: 18, height: 18)
             button.image?.isTemplate = true
-            
-            // Set button action for left click - show the clipboard history
-            button.action = #selector(handleStatusItemClick)
-            button.target = self
-            
-            // Configure to respond to right mouse clicks as well
-            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
+
+        statusItem?.menu = makeStatusBarMenu()
     }
     
-    @objc func handleStatusItemClick(_ sender: Any?) {
-        guard let event = NSApp.currentEvent else {
-            // Default to showing floating window if we can't get the event
-            showFloatingWindow()
-            return
-        }
-        
-        print("Status item clicked with event type: \(event.type.rawValue)")
-        
-        if event.type == .rightMouseUp {
-            print("Right click detected, showing menu")
-            
-            // Create the menu on demand
-            let menu = NSMenu()
-            
-            // Add settings item
-            let settingsItem = NSMenuItem(title: "Settings", action: #selector(openSettings), keyEquivalent: "")
-            settingsItem.target = self
-            menu.addItem(settingsItem)
-            
-            menu.addItem(NSMenuItem.separator())
-            
-            // Add quit item
-            let quitItem = NSMenuItem(title: "Quit", action: #selector(quitApp), keyEquivalent: "")
-            quitItem.target = self
-            menu.addItem(quitItem)
-            
-            // Show the menu under the button
-            if let button = statusItem?.button {
-                menu.popUp(positioning: nil, at: NSPoint(x: 0, y: 0), in: button)
-            }
-        } else {
-            // Left click - show the floating window
-            print("Left click detected, showing floating window")
-            showFloatingWindow()
-        }
+    private func makeStatusBarMenu() -> NSMenu {
+        let menu = NSMenu()
+
+        let openClippyItem = NSMenuItem(title: "Open Clippy", action: #selector(showFloatingWindow), keyEquivalent: "")
+        openClippyItem.target = self
+        menu.addItem(openClippyItem)
+
+        let settingsItem = NSMenuItem(title: "Open Settings", action: #selector(openSettings), keyEquivalent: "")
+        settingsItem.target = self
+        menu.addItem(settingsItem)
+
+        menu.addItem(NSMenuItem.separator())
+
+        let quitItem = NSMenuItem(title: "Quit Clippy", action: #selector(quitApp), keyEquivalent: "")
+        quitItem.target = self
+        menu.addItem(quitItem)
+
+        return menu
     }
     
     @objc func showHistory() {
@@ -325,14 +318,14 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
     @objc func openSettings() {
         // Debug print
         print("Opening settings window...")
+        prepareToShowUserFacingWindow()
         
         // If settings window is already open, just redirect to it in its current space
         if let window = settingsWindow, window.isVisible {
             print("Settings window already open, redirecting to it")
             // Ensure the window is visible and active in its current space
             window.makeKeyAndOrderFront(nil)
-            // Activate the app but don't force it to front of other apps
-            NSApp.activate(ignoringOtherApps: false)
+            NSApp.activate(ignoringOtherApps: true)
             return
         }
         
@@ -617,6 +610,8 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
     }
     
     @objc func showFloatingWindow() {
+        prepareToShowUserFacingWindow()
+        
         // If the window already exists, just bring it to front and return
         if let existingWindow = floatingWindow, !existingWindow.isVisible {
             existingWindow.makeKeyAndOrderFront(nil)
@@ -1160,43 +1155,10 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
         
         DispatchQueue.main.async {
             if hidden {
-                // The reliable way to completely hide the dock icon:
-                // First set to accessory (reduces visibility)
+                // Accessory apps are hidden from the Dock but can still present windows.
+                // Avoid .prohibited here; it is for background-only apps and prevents
+                // panels like Settings from appearing reliably.
                 NSApp.setActivationPolicy(.accessory)
-                
-                // Then after a tiny delay, set to prohibited (completely hides)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                    NSApp.setActivationPolicy(.prohibited)
-                    
-                    // Verify the setting took effect
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        // If somehow the activation policy isn't prohibited (which can happen),
-                        // try again with a different approach
-                        if NSApp.activationPolicy() != .prohibited {
-                            print("First attempt to hide dock icon failed, retrying...")
-                            
-                            // Try more aggressively with two-step approach
-                            NSApp.setActivationPolicy(.accessory)
-                            
-                            // Process events to ensure the first change is registered
-                            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.05))
-                            
-                            NSApp.setActivationPolicy(.prohibited)
-                            
-                            // Force process events to apply the change
-                            NSApp.activate(ignoringOtherApps: false)
-                            let _ = NSApp.windows // Force update window list
-                            
-                            // Schedule another check to make triple sure
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                if NSApp.activationPolicy() != .prohibited && UserDefaults.standard.bool(forKey: "hideDockIcon") {
-                                    print("Third attempt to hide dock icon")
-                                    NSApp.setActivationPolicy(.prohibited)
-                                }
-                            }
-                        }
-                    }
-                }
             } else {
                 // Show the dock icon - set to regular
                 NSApp.setActivationPolicy(.regular)
@@ -1212,6 +1174,14 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
                     }
                 }
             }
+        }
+    }
+    
+    private func prepareToShowUserFacingWindow() {
+        if UserDefaults.standard.bool(forKey: "hideDockIcon") {
+            NSApp.setActivationPolicy(.accessory)
+        } else {
+            NSApp.setActivationPolicy(.regular)
         }
     }
     
@@ -1233,6 +1203,13 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
     }
     
     @objc func fadeOutAndCloseWindow(_ sender: Any) {
+        if !Thread.isMainThread {
+            DispatchQueue.main.async { [weak self] in
+                self?.fadeOutAndCloseWindow(sender)
+            }
+            return
+        }
+
         // Get the window - either from the sender or the active window
         let window: NSWindow?
         if let button = sender as? NSButton {
@@ -1254,6 +1231,12 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
 
         // Save position before closing
         if let window = window {
+            let windowID = ObjectIdentifier(window)
+            guard !closingWindowIDs.contains(windowID) else {
+                return
+            }
+            closingWindowIDs.insert(windowID)
+
             if window == self.settingsWindow {
                 let pos = NSStringFromPoint(window.frame.origin)
                 UserDefaults.standard.set(pos, forKey: settingsWindowPositionKey)
@@ -1270,6 +1253,7 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
                 context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
                 window.animator().alphaValue = 0
             }, completionHandler: {
+                self.closingWindowIDs.remove(ObjectIdentifier(window))
                 if self.settingsWindow == window {
                     self.settingsWindow = nil
                 } else if self.floatingWindow == window {
@@ -1278,6 +1262,40 @@ class ClipboardAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, O
                 window.close()
             })
         }
+    }
+
+    func closeFloatingWindow() {
+        guard let floatingWindow else { return }
+        fadeOutAndCloseWindow(floatingWindow)
+    }
+
+    func dismissFloatingWindowForPaste(completion: @escaping () -> Void) {
+        if !Thread.isMainThread {
+            DispatchQueue.main.async { [weak self] in
+                self?.dismissFloatingWindowForPaste(completion: completion)
+            }
+            return
+        }
+
+        guard let window = floatingWindow else {
+            completion()
+            return
+        }
+
+        let pos = NSStringFromPoint(window.frame.origin)
+        UserDefaults.standard.set(pos, forKey: floatingWindowPositionKey)
+
+        NSApp.hide(nil)
+
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = 0.1
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            window.animator().alphaValue = 0
+        }, completionHandler: {
+            window.orderOut(nil)
+            window.alphaValue = 0.98
+            completion()
+        })
     }
     
     // Add a public method to clear the clipboard history

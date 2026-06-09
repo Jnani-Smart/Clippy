@@ -1162,19 +1162,20 @@ struct ClipboardView: View {
 
         if shouldAutoPasteAfterCopying {
             pendingPasteWorkItem?.cancel()
-            let pasteWorkItem = DispatchWorkItem {
-                simulatePaste()
+            appDelegate.dismissFloatingWindowForPaste {
+                let pasteWorkItem = DispatchWorkItem {
+                    simulatePaste()
+                }
+                pendingPasteWorkItem = pasteWorkItem
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: pasteWorkItem)
             }
-            pendingPasteWorkItem = pasteWorkItem
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: pasteWorkItem)
+        } else {
+            closeWindow()
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
             pendingPasteWorkItem = nil
         }
-
-        // Close the current window efficiently
-        closeWindow()
     }
 
     private func handleKeyboardEvent(keyCode: UInt16) -> Bool {
@@ -1206,6 +1207,11 @@ struct ClipboardView: View {
         }
         // Escape: keyCode 53
         if keyCode == 53 {
+            if showQuickLook {
+                closeQuickLook()
+                return true
+            }
+
             if isSelectMode {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                     isSelectMode = false
@@ -1264,7 +1270,7 @@ struct ClipboardView: View {
 
         withAnimation(.easeInOut(duration: 0.12)) {
             keyboardSelectedItemId = nextId
-            hoveredItemId = nil
+            hoveredItemId = nextId
             isKeyboardSelectionControllingHover = true
             lastMouseHoverLocation = nil
             expandableItemId = nil
@@ -1284,17 +1290,14 @@ struct ClipboardView: View {
     }
     
     private func handleItemHover(isHovered: Bool, item: ClipboardItem) {
-        if isHovered && isKeyboardSelectionControllingHover {
-            return
-        }
-
-        // Always track hovered item for visual feedback
-        DispatchQueue.main.async {
-            withAnimation(.easeInOut(duration: 0.15)) {
-                hoveredItemId = isHovered ? item.id : nil
-                if isHovered {
-                    keyboardSelectedItemId = item.id
-                }
+        withAnimation(.easeInOut(duration: 0.15)) {
+            if isHovered {
+                isKeyboardSelectionControllingHover = false
+                hoveredItemId = item.id
+                keyboardSelectedItemId = item.id
+                lastMouseHoverLocation = NSEvent.mouseLocation
+            } else if hoveredItemId == item.id {
+                hoveredItemId = nil
             }
         }
         
@@ -1559,23 +1562,7 @@ struct ClipboardView: View {
     
     // More efficient window closing with fade-out animation
     private func closeWindow() {
-        NSApplication.shared.hide(nil)
-        
-        // Find and animate window closing
-        DispatchQueue.global(qos: .userInteractive).async {
-            if let window = NSApplication.shared.windows.first(where: { $0.isVisible }) {
-                DispatchQueue.main.async {
-                    // Fade-out animation
-                    NSAnimationContext.runAnimationGroup({ context in
-                        context.duration = 0.2
-                        context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-                        window.animator().alphaValue = 0.0
-                    }, completionHandler: {
-                        window.close()
-                    })
-                }
-            }
-        }
+        appDelegate.closeFloatingWindow()
     }
     
     // Optimized paste simulation

@@ -48,7 +48,7 @@ enum ClipboardKeyboardNavigation {
             return nil
         }
 
-        let currentId = selectedId ?? hoveredId
+        let currentId = hoveredId ?? selectedId
         let currentIndex = currentId.flatMap { itemIds.firstIndex(of: $0) } ?? (offset > 0 ? -1 : itemIds.count)
         let nextIndex = (currentIndex + offset + itemIds.count) % itemIds.count
 
